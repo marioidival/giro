@@ -43,7 +43,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-models/src/user.rs`",
-      "commit_message": "`feat: add User model with DTOs and tests`"
+      "commit_message": "`feat: add User model with DTOs and tests`",
+      "status": "done"
     },
     {
       "issue_number": 4,
