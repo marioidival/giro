@@ -93,7 +93,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`migrations/002_loops.sql`",
-      "commit_message": "`feat: add loops table migration`"
+      "commit_message": "`feat: add loops table migration`",
+      "status": "done"
     },
     {
       "issue_number": 9,
