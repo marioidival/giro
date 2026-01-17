@@ -1,0 +1,12 @@
+[package]
+name = "ralph-repositories"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ralph-models = { path = "../ralph-models" }
+sqlx.workspace = true
+anyhow.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+async-trait.workspace = true

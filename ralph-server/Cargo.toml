@@ -1,0 +1,16 @@
+[package]
+name = "ralph-server"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "ralph-server"
+path = "src/main.rs"
+
+[dependencies]
+ralph-models = { path = "../ralph-models" }
+ralph-repositories = { path = "../ralph-repositories" }
+ralph-services = { path = "../ralph-services" }
+ralph-agent = { path = "../ralph-agent" }
+tokio.workspace = true
+anyhow.workspace = true
