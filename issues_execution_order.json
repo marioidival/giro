@@ -103,7 +103,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`migrations/003_tasks.sql`",
-      "commit_message": "`feat: add tasks table migration`"
+      "commit_message": "`feat: add tasks table migration`",
+      "status": "done"
     },
     {
       "issue_number": 10,
