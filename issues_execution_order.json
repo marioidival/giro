@@ -53,7 +53,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-models/src/loop_.rs`",
-      "commit_message": "`feat: add Loop model with status enum and tests`"
+      "commit_message": "`feat: add Loop model with status enum and tests`",
+      "status": "done"
     },
     {
       "issue_number": 5,
@@ -62,7 +63,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-models/src/task.rs`",
-      "commit_message": "`feat: add Task model with status enum and tests`"
+      "commit_message": "`feat: add Task model with status enum and tests`",
+      "status": "done"
     },
     {
       "issue_number": 6,
@@ -71,7 +73,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-models/src/lib.rs`",
-      "commit_message": "`refactor: export all public models from ralph-models`"
+      "commit_message": "`refactor: export all public models from ralph-models`",
+      "status": "done"
     },
     {
       "issue_number": 7,
