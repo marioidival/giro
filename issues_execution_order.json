@@ -33,7 +33,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-models/Cargo.toml`, `ralph-models/src/lib.rs`",
-      "commit_message": "`feat: create ralph-models crate structure`"
+      "commit_message": "`feat: create ralph-models crate structure`",
+      "status": "done"
     },
     {
       "issue_number": 3,
