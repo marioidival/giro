@@ -4,7 +4,9 @@
 
 use crate::handlers::{
     auth::{AppState, login, logout, register},
-    git::{create_git_credentials, delete_git_credentials, list_git_credentials},
+    git::{
+        create_git_credentials, delete_git_credentials, git_credentials_page, list_git_credentials,
+    },
     health_check,
     loops::{
         create_loop, delete_loop, get_loop, get_loop_page, list_loops, list_loops_page,
@@ -106,6 +108,7 @@ pub fn create_router(state: AppState) -> Router {
 /// - `DELETE /api/tasks/:id` - Delete a task
 ///
 /// ## Git Credentials
+/// - `GET /git/credentials` - Render Git credentials management page (HTML)
 /// - `GET /api/git/credentials` - List all Git credentials for the authenticated user
 /// - `POST /api/git/credentials` - Create a new Git credential
 /// - `DELETE /api/git/credentials/:id` - Delete a Git credential
@@ -124,6 +127,7 @@ fn protected_routes() -> Router<AppState> {
         .route("/api/loops/{id}/stream", get(websocket_handler))
         .route("/api/loops/{id}/tasks", get(list_tasks).post(create_task))
         .route("/api/tasks/{id}", get(get_task).delete(delete_task))
+        .route("/git/credentials", get(git_credentials_page))
         .route(
             "/api/git/credentials",
             get(list_git_credentials).post(create_git_credentials),

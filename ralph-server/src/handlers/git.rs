@@ -4,15 +4,19 @@
 //! All handlers require authentication via auth middleware and check ownership
 //! to ensure users can only access their own credentials.
 
+use askama::Template;
 use axum::{
     Extension, Json,
     extract::{Path, State},
     http::StatusCode,
+    response::Html,
 };
 use ralph_models::{CreateGitCredential, GitCredential};
 use serde::{Deserialize, Serialize};
 
 use crate::handlers::auth::AppState;
+use crate::middleware::csrf::CsrfToken;
+use crate::templates::GitCredentialsListTemplate;
 
 /// Request payload for creating a Git credential.
 ///
@@ -291,6 +295,54 @@ pub async fn delete_git_credentials(
                 )
             }
         }
+    }
+}
+
+/// Handles rendering the Git credentials management page (HTML).
+///
+/// This endpoint:
+/// 1. Extracts user_id from auth middleware
+/// 2. Generates CSRF token
+/// 3. Retrieves all credentials for the user
+/// 4. Renders the credentials management template
+///
+/// # Arguments
+/// * `state` - The application state containing git credentials repository
+/// * `user_id` - The authenticated user's ID (from auth middleware)
+///
+/// # Returns
+/// * `200 OK` with HTML template on success
+/// * `500 Internal Server Error` for server errors
+pub async fn git_credentials_page(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<String>,
+) -> (StatusCode, Html<String>) {
+    let logged_in = !user_id.is_empty();
+
+    // Get credentials for the user
+    let credentials = match state
+        .git_credentials_repository
+        .list_by_user(&user_id)
+        .await
+    {
+        Ok(creds) => creds.into_iter().map(GitCredentialSummary::from).collect(),
+        Err(_e) => Vec::new(),
+    };
+
+    let csrf_token = CsrfToken::generate().to_string();
+
+    let template = GitCredentialsListTemplate {
+        logged_in,
+        csrf_token,
+        credentials,
+    };
+
+    match template.render() {
+        Ok(html) => (StatusCode::OK, Html(html)),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Html(format!("Failed to render template: {}", e)),
+        ),
     }
 }
 

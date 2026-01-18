@@ -1,3 +1,4 @@
+use crate::handlers::git::GitCredentialSummary;
 use crate::handlers::loops::LoopDetail;
 use crate::handlers::loops::LoopSummary;
 use crate::handlers::tasks::TaskSummary;
@@ -74,6 +75,14 @@ pub struct NewTaskTemplate<'a> {
     pub loop_name: String,
     pub existing_tasks: &'a [TaskSummary],
     pub errors: &'a [String],
+}
+
+#[derive(Template)]
+#[template(path = "git/credentials.html")]
+pub struct GitCredentialsListTemplate {
+    pub logged_in: bool,
+    pub csrf_token: String,
+    pub credentials: Vec<GitCredentialSummary>,
 }
 
 #[cfg(test)]
