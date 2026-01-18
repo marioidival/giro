@@ -6,3 +6,4 @@ pub mod task;
 pub mod user;
 
 pub use database::Database;
+pub use loop_::LoopRepository;
