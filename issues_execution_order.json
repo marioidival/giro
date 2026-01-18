@@ -522,7 +522,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/src/handlers/health.rs`",
-      "commit_message": "`feat: add health check handler with DB status`"
+      "commit_message": "`feat: add health check handler with DB status`",
+      "status": "done"
     },
     {
       "issue_number": 52,
