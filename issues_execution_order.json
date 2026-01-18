@@ -183,7 +183,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-repositories/src/file.rs`",
-      "commit_message": "`feat: add FileRepository with queries`"
+      "commit_message": "`feat: add FileRepository with queries`",
+      "status": "done"
     },
     {
       "issue_number": 18,
