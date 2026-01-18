@@ -133,7 +133,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-repositories/src/database.rs`",
-      "commit_message": "`feat: add Database module with SQLite optimizations`"
+      "commit_message": "`feat: add Database module with SQLite optimizations`",
+      "status": "done"
     },
     {
       "issue_number": 13,
