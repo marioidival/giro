@@ -532,7 +532,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/src/handlers/mod.rs`",
-      "commit_message": "`refactor: organize handlers into module`"
+      "commit_message": "`refactor: organize handlers into module`",
+      "status": "done"
     },
     {
       "issue_number": 53,
