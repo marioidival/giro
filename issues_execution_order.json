@@ -473,7 +473,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/src/middleware/auth.rs`",
-      "commit_message": "`feat: add authentication middleware`"
+      "commit_message": "`feat: add authentication middleware`",
+      "status": "done"
     },
     {
       "issue_number": 47,
