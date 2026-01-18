@@ -389,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_file_tool_default() {
-        let tool = FileTool::default();
+        let tool = FileTool;
         assert_eq!(tool.name(), "file");
     }
 
@@ -442,7 +442,7 @@ mod tests {
 
     #[test]
     fn test_command_tool_default() {
-        let tool = CommandTool::default();
+        let tool = CommandTool;
         assert_eq!(tool.name(), "cmd");
     }
 }

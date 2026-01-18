@@ -205,8 +205,6 @@ mod tests {
         let config = AgentConfig::default();
 
         let _agent = CodeAgent::new(provider, config);
-
-        assert!(true);
     }
 
     #[tokio::test]
