@@ -6,6 +6,21 @@ pub struct BaseTemplate {
     pub logged_in: bool,
 }
 
+#[derive(Template)]
+#[template(path = "auth/login.html")]
+pub struct LoginTemplate {
+    pub logged_in: bool,
+    pub csrf_token: String,
+}
+
+#[derive(Template)]
+#[template(path = "auth/register.html")]
+pub struct RegisterTemplate {
+    pub logged_in: bool,
+    pub csrf_token: String,
+    pub errors: Vec<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
