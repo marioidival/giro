@@ -41,6 +41,72 @@ pub struct SuggestedTask {
     pub priority: i32,
 }
 
+/// Extract suggested tasks from LLM response content
+///
+/// Parses <TASKS>...</TASKS> tags containing a JSON array of task objects.
+/// Returns None if tags are missing.
+///
+/// # Arguments
+/// * `content` - LLM response content to parse
+///
+/// # Returns
+/// Option<Vec<SuggestedTask>> - Parsed tasks or None if tags not found
+pub fn parse_suggested_tasks(content: &str) -> Option<Vec<SuggestedTask>> {
+    let start_tag = "<TASKS>";
+    let end_tag = "</TASKS>";
+
+    let start_idx = content.find(start_tag)?;
+    let end_idx = content.find(end_tag)?;
+
+    if start_idx >= end_idx {
+        return None;
+    }
+
+    let json_str = &content[start_idx + start_tag.len()..end_idx];
+
+    serde_json::from_str::<Vec<SuggestedTask>>(json_str).ok()
+}
+
+/// Extract commands from LLM response content
+///
+/// Parses all <CMD>...</CMD> tags and returns their content.
+/// Returns None if no tags are found.
+///
+/// # Arguments
+/// * `content` - LLM response content to parse
+///
+/// # Returns
+/// Option<Vec<String>> - Extracted commands or None if no tags found
+pub fn parse_commands(content: &str) -> Option<Vec<String>> {
+    let start_tag = "<CMD>";
+    let end_tag = "</CMD>";
+
+    let mut commands = Vec::new();
+    let mut search_start = 0;
+
+    while let Some(start_idx) = content[search_start..].find(start_tag) {
+        let start_absolute = search_start + start_idx;
+        let content_start = start_absolute + start_tag.len();
+
+        let end_idx = match content[content_start..].find(end_tag) {
+            Some(idx) => idx,
+            None => break,
+        };
+
+        let end_absolute = content_start + end_idx;
+        let command = content[content_start..end_absolute].trim().to_string();
+        commands.push(command);
+
+        search_start = end_absolute + end_tag.len();
+    }
+
+    if commands.is_empty() {
+        None
+    } else {
+        Some(commands)
+    }
+}
+
 /// Trait for LLM provider implementations
 #[async_trait]
 pub trait LLMProviderTrait: Send + Sync {
@@ -205,6 +271,128 @@ impl LLMProviderTrait for OpenAIProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_suggested_tasks_valid() {
+        let content = r#"
+            Some text here
+            <TASKS>[
+                {"title": "Add tests", "description": "Write unit tests", "priority": 5},
+                {"title": "Fix bug", "description": "Fix authentication bug", "priority": 10}
+            ]</TASKS>
+            More text
+        "#;
+
+        let tasks = parse_suggested_tasks(content);
+
+        assert!(tasks.is_some());
+        let tasks = tasks.unwrap();
+        assert_eq!(tasks.len(), 2);
+        assert_eq!(tasks[0].title, "Add tests");
+        assert_eq!(tasks[0].description, "Write unit tests");
+        assert_eq!(tasks[0].priority, 5);
+        assert_eq!(tasks[1].title, "Fix bug");
+        assert_eq!(tasks[1].description, "Fix authentication bug");
+        assert_eq!(tasks[1].priority, 10);
+    }
+
+    #[test]
+    fn test_parse_suggested_tasks_missing_tags() {
+        let content = "Some content without task tags";
+
+        let tasks = parse_suggested_tasks(content);
+
+        assert!(tasks.is_none());
+    }
+
+    #[test]
+    fn test_parse_suggested_tasks_malformed_json() {
+        let content = r#"
+            <TASKS>{ invalid json }</TASKS>
+        "#;
+
+        let tasks = parse_suggested_tasks(content);
+
+        assert!(tasks.is_none());
+    }
+
+    #[test]
+    fn test_parse_suggested_tasks_empty_array() {
+        let content = "<TASKS>[]</TASKS>";
+
+        let tasks = parse_suggested_tasks(content);
+
+        assert!(tasks.is_some());
+        let tasks = tasks.unwrap();
+        assert!(tasks.is_empty());
+    }
+
+    #[test]
+    fn test_parse_commands_multiple() {
+        let content = r#"
+            Execute these commands:
+            <CMD>cargo build</CMD>
+            <CMD>cargo test</CMD>
+            <CMD>cargo clippy</CMD>
+            Done
+        "#;
+
+        let commands = parse_commands(content);
+
+        assert!(commands.is_some());
+        let commands = commands.unwrap();
+        assert_eq!(commands.len(), 3);
+        assert_eq!(commands[0], "cargo build");
+        assert_eq!(commands[1], "cargo test");
+        assert_eq!(commands[2], "cargo clippy");
+    }
+
+    #[test]
+    fn test_parse_commands_missing_tags() {
+        let content = "Some content without command tags";
+
+        let commands = parse_commands(content);
+
+        assert!(commands.is_none());
+    }
+
+    #[test]
+    fn test_parse_commands_single() {
+        let content = "Run this: <CMD>echo hello</CMD>";
+
+        let commands = parse_commands(content);
+
+        assert!(commands.is_some());
+        let commands = commands.unwrap();
+        assert_eq!(commands.len(), 1);
+        assert_eq!(commands[0], "echo hello");
+    }
+
+    #[test]
+    fn test_parse_commands_with_whitespace() {
+        let content = "<CMD>
+            cargo build
+        </CMD>";
+
+        let commands = parse_commands(content);
+
+        assert!(commands.is_some());
+        let commands = commands.unwrap();
+        assert_eq!(commands.len(), 1);
+        assert_eq!(commands[0], "cargo build");
+    }
+
+    #[test]
+    fn test_parse_commands_nested_tags() {
+        let content = "<CMD>echo <TAG>test</TAG></CMD>";
+
+        let commands = parse_commands(content);
+
+        assert!(commands.is_some());
+        let commands = commands.unwrap();
+        assert_eq!(commands.len(), 1);
+        assert_eq!(commands[0], "echo <TAG>test</TAG>");
+    }
 
     #[test]
     fn test_llm_request_serialization() {
