@@ -8,3 +8,4 @@ pub use agent::{AgentConfig, AgentError, AgentResult, CodeAgent, MAX_CONTEXT_ENT
 pub use executor::ExecutionContext;
 pub use mocks::MockLLMProvider;
 pub use provider::ClaudeProvider;
+pub use tools::{Tool, ToolResult};
