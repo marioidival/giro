@@ -1168,8 +1168,13 @@ mod tests {
 
             let docker = Arc::new(ralph_services::DockerManager::new());
             let agent_config = ralph_agent::agent::AgentConfig::default();
-            let loop_executor =
-                LoopExecutor::new(Arc::new(pool), docker, agent_config, None, Arc::new(api_key_repository.clone()));
+            let loop_executor = LoopExecutor::new(
+                Arc::new(pool),
+                docker,
+                agent_config,
+                None,
+                Arc::new(api_key_repository.clone()),
+            );
 
             let broadcast_manager = crate::websocket::BroadcastManager::new();
 

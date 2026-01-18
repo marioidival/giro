@@ -72,6 +72,13 @@ impl AuthService {
 
         Ok(user)
     }
+
+    pub async fn get_user_by_id(&self, id: &str) -> Result<Option<User>> {
+        self.user_repo
+            .find_by_id(id)
+            .await
+            .context("Failed to query user by id")
+    }
 }
 
 pub fn hash_password(password: &str) -> Result<String> {

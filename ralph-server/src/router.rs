@@ -9,11 +9,13 @@ use crate::handlers::{
         create_git_credentials, delete_git_credentials, git_credentials_page, list_git_credentials,
     },
     health_check,
+    home::home_page,
     loops::{
         create_loop, delete_loop, get_loop, get_loop_page, list_loops, list_loops_page,
         new_loop_form, pause_loop, resume_loop, start_loop, stop_loop,
     },
     tasks::{create_task, delete_task, get_task, list_tasks, new_task_form},
+    user::profile_page,
 };
 use crate::middleware::{
     auth::auth_middleware,
@@ -88,6 +90,9 @@ pub fn create_router(state: AppState) -> Router {
 /// * A configured `Router` instance with authentication middleware applied
 ///
 /// # Protected Routes
+/// ## Home
+/// - `GET /` - Render home/landing page (HTML)
+///
 /// ## Loops
 /// - `GET /loops` - Render loop list page (HTML)
 /// - `GET /loops/new` - Render loop creation form (HTML)
@@ -121,6 +126,8 @@ pub fn create_router(state: AppState) -> Router {
 /// - `DELETE /api/keys/:id` - Deactivate an API key
 fn protected_routes() -> Router<AppState> {
     Router::new()
+        .route("/", get(home_page))
+        .route("/profile", get(profile_page))
         .route("/loops", get(list_loops_page))
         .route("/loops/new", get(new_loop_form))
         .route("/loops/{id}", get(get_loop_page))

@@ -1,9 +1,10 @@
 use crate::handlers::api_keys::ApiKeySummary;
 use crate::handlers::git::GitCredentialSummary;
-use crate::handlers::loops::LoopDetail;
-use crate::handlers::loops::LoopSummary;
+use crate::handlers::loops::{LoopDetail, LoopSummary};
 use crate::handlers::tasks::TaskSummary;
+use crate::handlers::user::UserDisplay;
 use askama::Template;
+use serde::{Deserialize, Serialize};
 
 #[derive(Template)]
 #[template(path = "base.html")]
@@ -92,6 +93,34 @@ pub struct ApiKeysListTemplate {
     pub logged_in: bool,
     pub csrf_token: String,
     pub keys: Vec<ApiKeySummary>,
+}
+
+#[derive(Template)]
+#[template(path = "home.html")]
+pub struct HomeTemplate {
+    pub logged_in: bool,
+    pub csrf_token: String,
+    pub recent_loops: Vec<LoopDisplay>,
+}
+
+#[derive(Template)]
+#[template(path = "user/profile.html")]
+pub struct ProfileTemplate {
+    pub logged_in: bool,
+    pub csrf_token: String,
+    pub user: UserDisplay,
+}
+
+/// Simplified display representation for loops in home page.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoopDisplay {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub status: String,
+    pub provider: String,
+    pub model: String,
+    pub created_at: String,
 }
 
 #[cfg(test)]
