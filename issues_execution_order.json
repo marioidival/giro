@@ -655,17 +655,6 @@
       "files": "`ralph-server/templates/tasks/new.html`, `ralph-server/tests/templates_tasks.rs`, `ralph-server/src/handlers/tasks.rs`, `ralph-server/src/router.rs`, `ralph-server/src/templates/mod.rs`",
       "commit_message": "`feat: add task form template and handler`",
       "status": "done"
-    }
-  ],
-  "issues": [
-    {
-      "issue_number": 62,
-      "task_id": "3.19",
-      "title": "3.19: Create Loop Form Template",
-      "sprint": "Sprint 3: HTTP Server & Frontend",
-      "sprint_number": 3,
-      "files": "`templates/loops/new.html`",
-      "commit_message": "`feat: add loop creation form template`"
     },
     {
       "issue_number": 65,
@@ -674,25 +663,37 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`docker/Dockerfile`",
-      "commit_message": "`feat: add base Docker image for loop containers`"
-    },
-    {
-      "issue_number": 66,
-      "task_id": "3.23",
-      "title": "3.23: Add Environment Variables Config",
-      "sprint": "Sprint 3: HTTP Server & Frontend",
-      "sprint_number": 3,
-      "files": "`.env.example`",
-      "commit_message": "`feat: add environment configuration template`"
-    },
-    {
-      "issue_number": 67,
-      "task_id": "3.24",
-      "title": "3.24: Update README",
-      "sprint": "Sprint 3: HTTP Server & Frontend",
-      "sprint_number": 3,
-      "files": "`README.md`",
-      "commit_message": "`docs: update README with comprehensive setup guide`"
+      "commit_message": "`feat: add base Docker image for loop containers`",
+      "status": "done"
     }
+  ],
+  "issues": [
+     {
+       "issue_number": 62,
+       "task_id": "3.19",
+       "title": "3.19: Create Loop Form Template",
+       "sprint": "Sprint 3: HTTP Server & Frontend",
+       "sprint_number": 3,
+       "files": "`templates/loops/new.html`",
+       "commit_message": "`feat: add loop creation form template`"
+     },
+     {
+       "issue_number": 66,
+       "task_id": "3.23",
+       "title": "3.23: Add Environment Variables Config",
+       "sprint": "Sprint 3: HTTP Server & Frontend",
+       "sprint_number": 3,
+       "files": "`.env.example`",
+       "commit_message": "`feat: add environment configuration template`"
+     },
+     {
+       "issue_number": 67,
+       "task_id": "3.24",
+       "title": "3.24: Update README",
+       "sprint": "Sprint 3: HTTP Server & Frontend",
+       "sprint_number": 3,
+       "files": "`README.md`",
+       "commit_message": "`docs: update README with comprehensive setup guide`"
+     }
   ]
 }
