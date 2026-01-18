@@ -554,11 +554,10 @@ mod integration_tests {
         };
 
         Router::new()
-            .without_v07_checks()
             .route("/api/loops", post(create_loop))
             .route("/api/loops", get(list_loops))
-            .route("/api/loops/:id", get(get_loop))
-            .route("/api/loops/:id", delete(delete_loop))
+            .route("/api/loops/{id}", get(get_loop))
+            .route("/api/loops/{id}", delete(delete_loop))
             .layer(axum::middleware::from_fn_with_state(
                 session_store.clone(),
                 crate::middleware::auth::auth_middleware,
@@ -857,12 +856,13 @@ mod integration_tests {
 
         let app = create_test_app(session_store.clone(), db);
 
-        let session_id = session_store.create_session(user1.id.clone()).await;
+        // Create session for user2 (different from loop owner)
+        let session_id = session_store.create_session(user2.id.clone()).await;
 
         let response = app
             .oneshot(
                 Request::builder()
-                    .method("DELETE")
+                    .method("GET")
                     .uri(format!("/api/loops/{}", loop_.id))
                     .header("session", &session_id)
                     .body(Body::empty())
