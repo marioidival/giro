@@ -221,7 +221,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-agent/src/mocks.rs`",
-      "commit_message": "`feat: add MockLLMProvider for offline testing`"
+      "commit_message": "`feat: add MockLLMProvider for offline testing`",
+      "status": "done"
     },
     {
       "issue_number": 22,
