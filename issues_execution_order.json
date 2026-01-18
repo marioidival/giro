@@ -273,7 +273,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-agent/src/agent.rs` (part 2)",
-      "commit_message": "`feat: add timeout enforcement to CodeAgent`"
+      "commit_message": "`feat: add timeout enforcement to CodeAgent`",
+      "status": "done"
     },
     {
       "issue_number": 27,
@@ -282,7 +283,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-agent/src/agent.rs` (part 3)",
-      "commit_message": "`feat: add context truncation (FIFO) to CodeAgent`"
+      "commit_message": "`feat: add context truncation (FIFO) to CodeAgent`",
+      "status": "done"
     },
     {
       "issue_number": 28,
