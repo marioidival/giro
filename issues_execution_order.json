@@ -163,7 +163,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-repositories/src/task.rs`",
-      "commit_message": "`feat: add TaskRepository with optimized queries`"
+      "commit_message": "`feat: add TaskRepository with optimized queries`",
+      "status": "done"
     },
     {
       "issue_number": 16,
