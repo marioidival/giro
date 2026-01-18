@@ -143,7 +143,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-repositories/src/user.rs`",
-      "commit_message": "`feat: add UserRepository with CRUD operations`"
+      "commit_message": "`feat: add UserRepository with CRUD operations`",
+      "status": "done"
     },
     {
       "issue_number": 14,
