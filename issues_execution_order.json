@@ -552,7 +552,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/src/router.rs` (part 2)",
-      "commit_message": "`feat: add HTTP router with protected routes`"
+      "commit_message": "`feat: add HTTP router with protected routes`",
+      "status": "done"
     },
     {
       "issue_number": 55,
