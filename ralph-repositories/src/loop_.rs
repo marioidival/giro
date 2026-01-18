@@ -334,6 +334,45 @@ impl LoopRepository {
         Ok(result.rows_affected())
     }
 
+    /// Increment the current iteration counter for a loop
+    ///
+    /// # Arguments
+    /// * `id` - Loop ID to increment iteration counter for
+    ///
+    /// # Returns
+    /// Number of rows affected (1 if updated, 0 if not found)
+    ///
+    /// # Errors
+    /// Returns error if database operation fails
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use ralph_repositories::loop_::LoopRepository;
+    /// # async fn example(repo: LoopRepository) -> Result<(), Box<dyn std::error::Error>> {
+    /// let rows = repo.increment_iteration("loop-id-123").await?;
+    /// assert_eq!(rows, 1);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn increment_iteration(&self, id: &str) -> Result<u64> {
+        let now = Utc::now();
+
+        let result = sqlx::query(
+            r#"
+            UPDATE loops
+            SET current_iteration = current_iteration + 1, updated_at = ?
+            WHERE id = ?
+            "#,
+        )
+        .bind(now)
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .context("Failed to increment loop iteration")?;
+
+        Ok(result.rows_affected())
+    }
+
     /// Delete a loop by ID
     ///
     /// # Arguments
