@@ -219,11 +219,7 @@ pub async fn list_loops_page(
         Ok(mut all_loops) => {
             let total = all_loops.len();
             let limit = query.limit;
-            let total_pages = if total == 0 {
-                1
-            } else {
-                (total + limit - 1) / limit
-            };
+            let total_pages = if total == 0 { 1 } else { total.div_ceil(limit) };
 
             let start = if query.page > 0 {
                 (query.page - 1) * limit
@@ -1016,6 +1012,19 @@ mod tests {
             .await
             .unwrap();
 
+            // Insert test users to satisfy foreign key constraints
+            sqlx::query(
+                r#"
+                INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
+                VALUES ('test-user-id', 'testuser', 'test@example.com', 'hash', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z'),
+                       ('owner-user-id', 'owner', 'owner@example.com', 'hash', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z'),
+                       ('attacker-user-id', 'attacker', 'attacker@example.com', 'hash', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')
+                "#,
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+
             let user_repo = ralph_repositories::UserRepository::new(pool.clone());
             let auth_service = AuthService::new(user_repo);
             let session_store = SessionStore::new();
@@ -1038,6 +1047,15 @@ mod tests {
                 loop_executor,
                 broadcast_manager,
             )
+        }
+
+        /// Check if Docker daemon is running
+        fn is_docker_running() -> bool {
+            std::process::Command::new("docker")
+                .args(["ps"])
+                .output()
+                .map(|output| output.status.success())
+                .unwrap_or(false)
         }
 
         #[tokio::test]
@@ -1081,12 +1099,27 @@ mod tests {
 
         #[tokio::test]
         async fn test_start_loop_starts_execution() {
+            if !is_docker_running() {
+                eprintln!(
+                    "Skipping test_start_loop_starts_execution: Docker daemon is not running"
+                );
+                return;
+            }
+
             let state = create_test_state().await;
             let app = crate::router::create_router(state.clone());
 
             let user_id = "test-user-id".to_string();
             let session_id = state.session_store.create_session(user_id.clone()).await;
 
+            // Generate and store CSRF token
+            let csrf_token = crate::middleware::csrf::CsrfToken::generate();
+            state
+                .csrf_store
+                .store(&session_id, csrf_token.as_str())
+                .await;
+
+            // Create loop via HTTP handler
             let create_loop = ralph_models::CreateLoop {
                 name: "Test Loop".to_string(),
                 description: None,
@@ -1104,47 +1137,36 @@ mod tests {
                 git_branch_pattern: Some("ralph/{loop_id}/{timestamp}".to_string()),
             };
 
-            let pool = SqlitePool::connect(":memory:").await.unwrap();
-            sqlx::query(
-                r#"
-                CREATE TABLE IF NOT EXISTS loops (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    description TEXT,
-                    prd TEXT NOT NULL,
-                    owner_id TEXT NOT NULL,
-                    provider TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    docker_image TEXT NOT NULL,
-                    cpu_limit INTEGER NOT NULL,
-                    memory_limit INTEGER NOT NULL,
-                    max_iterations INTEGER NOT NULL,
-                    iteration_timeout INTEGER NOT NULL,
-                    iteration_delay INTEGER NOT NULL,
-                    git_repo_url TEXT,
-                    git_branch_pattern TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    current_iteration INTEGER NOT NULL DEFAULT 0,
-                    container_id TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+            let create_response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/api/loops")
+                        .method(Method::POST)
+                        .header("session", &session_id)
+                        .header("x-csrf-token", csrf_token.as_str())
+                        .header("content-type", "application/json")
+                        .body(Body::from(serde_json::to_string(&create_loop).unwrap()))
+                        .unwrap(),
                 )
-                "#,
-            )
-            .execute(&pool)
-            .await
-            .unwrap();
+                .await
+                .unwrap();
 
-            let loop_repository = LoopRepository::new(pool.clone());
-            let created_loop = loop_repository.create(create_loop).await.unwrap();
+            assert_eq!(create_response.status(), StatusCode::CREATED);
+            let create_body = axum::body::to_bytes(create_response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let create_json: CreateLoopResponse = serde_json::from_slice(&create_body).unwrap();
+            let created_loop_id = create_json.loop_id.unwrap();
 
+            // Start the loop
             let response = app
                 .oneshot(
                     Request::builder()
-                        .uri(&format!("/api/loops/{}/start", created_loop.id))
+                        .uri(format!("/api/loops/{}/start", created_loop_id))
                         .method(Method::POST)
                         .header("session", &session_id)
+                        .header("x-csrf-token", csrf_token.as_str())
                         .body(Body::empty())
                         .unwrap(),
                 )
@@ -1165,45 +1187,25 @@ mod tests {
 
         #[tokio::test]
         async fn test_pause_loop_stops_execution() {
+            if !is_docker_running() {
+                eprintln!("Skipping test_pause_loop_stops_execution: Docker daemon is not running");
+                return;
+            }
+
             let state = create_test_state().await;
             let app = crate::router::create_router(state.clone());
 
             let user_id = "test-user-id".to_string();
             let session_id = state.session_store.create_session(user_id.clone()).await;
 
-            let pool = SqlitePool::connect(":memory:").await.unwrap();
-            sqlx::query(
-                r#"
-                CREATE TABLE IF NOT EXISTS loops (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    description TEXT,
-                    prd TEXT NOT NULL,
-                    owner_id TEXT NOT NULL,
-                    provider TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    docker_image TEXT NOT NULL,
-                    cpu_limit INTEGER NOT NULL,
-                    memory_limit INTEGER NOT NULL,
-                    max_iterations INTEGER NOT NULL,
-                    iteration_timeout INTEGER NOT NULL,
-                    iteration_delay INTEGER NOT NULL,
-                    git_repo_url TEXT,
-                    git_branch_pattern TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    current_iteration INTEGER NOT NULL DEFAULT 0,
-                    container_id TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
-                )
-                "#,
-            )
-            .execute(&pool)
-            .await
-            .unwrap();
+            // Generate and store CSRF token
+            let csrf_token = crate::middleware::csrf::CsrfToken::generate();
+            state
+                .csrf_store
+                .store(&session_id, csrf_token.as_str())
+                .await;
 
-            let loop_repository = LoopRepository::new(pool.clone());
+            // Create loop via HTTP handler
             let create_loop = ralph_models::CreateLoop {
                 name: "Test Loop".to_string(),
                 description: None,
@@ -1221,14 +1223,35 @@ mod tests {
                 git_branch_pattern: Some("ralph/{loop_id}/{timestamp}".to_string()),
             };
 
-            let created_loop = loop_repository.create(create_loop).await.unwrap();
+            let create_response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/api/loops")
+                        .method(Method::POST)
+                        .header("session", &session_id)
+                        .header("x-csrf-token", csrf_token.as_str())
+                        .header("content-type", "application/json")
+                        .body(Body::from(serde_json::to_string(&create_loop).unwrap()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(create_response.status(), StatusCode::CREATED);
+            let create_body = axum::body::to_bytes(create_response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let create_json: CreateLoopResponse = serde_json::from_slice(&create_body).unwrap();
+            let created_loop_id = create_json.loop_id.unwrap();
 
             let response = app
                 .oneshot(
                     Request::builder()
-                        .uri(&format!("/api/loops/{}/pause", created_loop.id))
+                        .uri(format!("/api/loops/{}/pause", created_loop_id))
                         .method(Method::POST)
                         .header("session", &session_id)
+                        .header("x-csrf-token", csrf_token.as_str())
                         .body(Body::empty())
                         .unwrap(),
                 )
@@ -1249,45 +1272,27 @@ mod tests {
 
         #[tokio::test]
         async fn test_resume_loop_continues_execution() {
+            if !is_docker_running() {
+                eprintln!(
+                    "Skipping test_resume_loop_continues_execution: Docker daemon is not running"
+                );
+                return;
+            }
+
             let state = create_test_state().await;
             let app = crate::router::create_router(state.clone());
 
             let user_id = "test-user-id".to_string();
             let session_id = state.session_store.create_session(user_id.clone()).await;
 
-            let pool = SqlitePool::connect(":memory:").await.unwrap();
-            sqlx::query(
-                r#"
-                CREATE TABLE IF NOT EXISTS loops (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    description TEXT,
-                    prd TEXT NOT NULL,
-                    owner_id TEXT NOT NULL,
-                    provider TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    docker_image TEXT NOT NULL,
-                    cpu_limit INTEGER NOT NULL,
-                    memory_limit INTEGER NOT NULL,
-                    max_iterations INTEGER NOT NULL,
-                    iteration_timeout INTEGER NOT NULL,
-                    iteration_delay INTEGER NOT NULL,
-                    git_repo_url TEXT,
-                    git_branch_pattern TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    current_iteration INTEGER NOT NULL DEFAULT 0,
-                    container_id TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
-                )
-                "#,
-            )
-            .execute(&pool)
-            .await
-            .unwrap();
+            // Generate and store CSRF token
+            let csrf_token = crate::middleware::csrf::CsrfToken::generate();
+            state
+                .csrf_store
+                .store(&session_id, csrf_token.as_str())
+                .await;
 
-            let loop_repository = LoopRepository::new(pool.clone());
+            // Create loop via HTTP handler
             let create_loop = ralph_models::CreateLoop {
                 name: "Test Loop".to_string(),
                 description: None,
@@ -1305,14 +1310,35 @@ mod tests {
                 git_branch_pattern: Some("ralph/{loop_id}/{timestamp}".to_string()),
             };
 
-            let created_loop = loop_repository.create(create_loop).await.unwrap();
+            let create_response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/api/loops")
+                        .method(Method::POST)
+                        .header("session", &session_id)
+                        .header("x-csrf-token", csrf_token.as_str())
+                        .header("content-type", "application/json")
+                        .body(Body::from(serde_json::to_string(&create_loop).unwrap()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(create_response.status(), StatusCode::CREATED);
+            let create_body = axum::body::to_bytes(create_response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let create_json: CreateLoopResponse = serde_json::from_slice(&create_body).unwrap();
+            let created_loop_id = create_json.loop_id.unwrap();
 
             let response = app
                 .oneshot(
                     Request::builder()
-                        .uri(&format!("/api/loops/{}/resume", created_loop.id))
+                        .uri(format!("/api/loops/{}/resume", created_loop_id))
                         .method(Method::POST)
                         .header("session", &session_id)
+                        .header("x-csrf-token", csrf_token.as_str())
                         .body(Body::empty())
                         .unwrap(),
                 )
@@ -1333,45 +1359,27 @@ mod tests {
 
         #[tokio::test]
         async fn test_stop_loop_terminates_execution() {
+            if !is_docker_running() {
+                eprintln!(
+                    "Skipping test_stop_loop_terminates_execution: Docker daemon is not running"
+                );
+                return;
+            }
+
             let state = create_test_state().await;
             let app = crate::router::create_router(state.clone());
 
             let user_id = "test-user-id".to_string();
             let session_id = state.session_store.create_session(user_id.clone()).await;
 
-            let pool = SqlitePool::connect(":memory:").await.unwrap();
-            sqlx::query(
-                r#"
-                CREATE TABLE IF NOT EXISTS loops (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    description TEXT,
-                    prd TEXT NOT NULL,
-                    owner_id TEXT NOT NULL,
-                    provider TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    docker_image TEXT NOT NULL,
-                    cpu_limit INTEGER NOT NULL,
-                    memory_limit INTEGER NOT NULL,
-                    max_iterations INTEGER NOT NULL,
-                    iteration_timeout INTEGER NOT NULL,
-                    iteration_delay INTEGER NOT NULL,
-                    git_repo_url TEXT,
-                    git_branch_pattern TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    current_iteration INTEGER NOT NULL DEFAULT 0,
-                    container_id TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
-                )
-                "#,
-            )
-            .execute(&pool)
-            .await
-            .unwrap();
+            // Generate and store CSRF token
+            let csrf_token = crate::middleware::csrf::CsrfToken::generate();
+            state
+                .csrf_store
+                .store(&session_id, csrf_token.as_str())
+                .await;
 
-            let loop_repository = LoopRepository::new(pool.clone());
+            // Create loop via HTTP handler
             let create_loop = ralph_models::CreateLoop {
                 name: "Test Loop".to_string(),
                 description: None,
@@ -1389,14 +1397,35 @@ mod tests {
                 git_branch_pattern: Some("ralph/{loop_id}/{timestamp}".to_string()),
             };
 
-            let created_loop = loop_repository.create(create_loop).await.unwrap();
+            let create_response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/api/loops")
+                        .method(Method::POST)
+                        .header("session", &session_id)
+                        .header("x-csrf-token", csrf_token.as_str())
+                        .header("content-type", "application/json")
+                        .body(Body::from(serde_json::to_string(&create_loop).unwrap()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(create_response.status(), StatusCode::CREATED);
+            let create_body = axum::body::to_bytes(create_response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let create_json: CreateLoopResponse = serde_json::from_slice(&create_body).unwrap();
+            let created_loop_id = create_json.loop_id.unwrap();
 
             let response = app
                 .oneshot(
                     Request::builder()
-                        .uri(&format!("/api/loops/{}/stop", created_loop.id))
+                        .uri(format!("/api/loops/{}/stop", created_loop_id))
                         .method(Method::POST)
                         .header("session", &session_id)
+                        .header("x-csrf-token", csrf_token.as_str())
                         .body(Body::empty())
                         .unwrap(),
                 )
@@ -1422,44 +1451,28 @@ mod tests {
 
             let owner_id = "owner-user-id".to_string();
             let attacker_id = "attacker-user-id".to_string();
+
+            let owner_session = state.session_store.create_session(owner_id.clone()).await;
             let attacker_session = state
                 .session_store
                 .create_session(attacker_id.clone())
                 .await;
 
-            let pool = SqlitePool::connect(":memory:").await.unwrap();
-            sqlx::query(
-                r#"
-                CREATE TABLE IF NOT EXISTS loops (
-                    id TEXT PRIMARY KEY,
-                    name TEXT NOT NULL,
-                    description TEXT,
-                    prd TEXT NOT NULL,
-                    owner_id TEXT NOT NULL,
-                    provider TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    docker_image TEXT NOT NULL,
-                    cpu_limit INTEGER NOT NULL,
-                    memory_limit INTEGER NOT NULL,
-                    max_iterations INTEGER NOT NULL,
-                    iteration_timeout INTEGER NOT NULL,
-                    iteration_delay INTEGER NOT NULL,
-                    git_repo_url TEXT,
-                    git_branch_pattern TEXT NOT NULL,
-                    status TEXT NOT NULL,
-                    current_iteration INTEGER NOT NULL DEFAULT 0,
-                    container_id TEXT,
-                    created_at TEXT NOT NULL,
-                    updated_at TEXT NOT NULL,
-                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
-                )
-                "#,
-            )
-            .execute(&pool)
-            .await
-            .unwrap();
+            // Generate and store CSRF token for owner
+            let owner_csrf_token = crate::middleware::csrf::CsrfToken::generate();
+            state
+                .csrf_store
+                .store(&owner_session, owner_csrf_token.as_str())
+                .await;
 
-            let loop_repository = LoopRepository::new(pool.clone());
+            // Generate and store CSRF token for attacker
+            let attacker_csrf_token = crate::middleware::csrf::CsrfToken::generate();
+            state
+                .csrf_store
+                .store(&attacker_session, attacker_csrf_token.as_str())
+                .await;
+
+            // Create loop via HTTP handler as owner
             let create_loop = ralph_models::CreateLoop {
                 name: "Test Loop".to_string(),
                 description: None,
@@ -1477,14 +1490,36 @@ mod tests {
                 git_branch_pattern: Some("ralph/{loop_id}/{timestamp}".to_string()),
             };
 
-            let created_loop = loop_repository.create(create_loop).await.unwrap();
+            let create_response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri("/api/loops")
+                        .method(Method::POST)
+                        .header("session", &owner_session)
+                        .header("x-csrf-token", owner_csrf_token.as_str())
+                        .header("content-type", "application/json")
+                        .body(Body::from(serde_json::to_string(&create_loop).unwrap()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
 
+            assert_eq!(create_response.status(), StatusCode::CREATED);
+            let create_body = axum::body::to_bytes(create_response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let create_json: CreateLoopResponse = serde_json::from_slice(&create_body).unwrap();
+            let created_loop_id = create_json.loop_id.unwrap();
+
+            // Try to control the loop as attacker
             let response = app
                 .oneshot(
                     Request::builder()
-                        .uri(&format!("/api/loops/{}/start", created_loop.id))
+                        .uri(format!("/api/loops/{}/start", created_loop_id))
                         .method(Method::POST)
                         .header("session", &attacker_session)
+                        .header("x-csrf-token", attacker_csrf_token.as_str())
                         .body(Body::empty())
                         .unwrap(),
                 )

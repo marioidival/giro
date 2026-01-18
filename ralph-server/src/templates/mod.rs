@@ -1,3 +1,4 @@
+use crate::handlers::loops::LoopSummary;
 use askama::Template;
 
 #[derive(Template)]
@@ -19,6 +20,18 @@ pub struct RegisterTemplate {
     pub logged_in: bool,
     pub csrf_token: String,
     pub errors: Vec<String>,
+}
+
+#[derive(Template)]
+#[template(path = "loops/index.html")]
+pub struct LoopListTemplate {
+    pub logged_in: bool,
+    pub csrf_token: String,
+    pub loops: Vec<LoopSummary>,
+    pub page: u32,
+    pub total_pages: u32,
+    pub has_prev: bool,
+    pub has_next: bool,
 }
 
 #[cfg(test)]
