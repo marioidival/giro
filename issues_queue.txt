@@ -1,11 +1,10 @@
 # Ralph Loop Manager - Issues Execution Queue
-# Total pending issues: 45
+# Total pending issues: 44
 # Order: Sprint 4 → 5 → 6 → 7 → 8 → 9
 # Format: Each line is an issue number to implement
 # Last updated: 2026-01-18
 
 
-90
 91
 92
 93
