@@ -303,7 +303,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-agent/src/tools.rs` (part 1)",
-      "commit_message": "`feat: add Tool trait for extensible operations`"
+      "commit_message": "`feat: add Tool trait for extensible operations`",
+      "status": "done"
     },
     {
       "issue_number": 30,
