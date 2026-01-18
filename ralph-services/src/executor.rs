@@ -260,7 +260,6 @@ impl LoopExecutor {
             // Execute task
             match self.execute_task(&task).await {
                 Ok(_iteration_id) => {
-                    // Task completed successfully
                     task_repo
                         .update_status(
                             &task.id,
@@ -272,9 +271,6 @@ impl LoopExecutor {
                         .await?;
 
                     debug!("Task {} completed successfully", task.id);
-
-                    // TODO: Auto-create tasks from LLM suggestions (task 2.23)
-                    // Will be implemented in future task
                 }
                 Err(e) => {
                     // Task failed
@@ -308,6 +304,7 @@ impl LoopExecutor {
     ///
     /// Executes a task via LLM provider (Claude or Mock) inside Docker container,
     /// writes output to /workspace/task.md, and returns iteration_id.
+    /// Also auto-creates tasks from LLM suggestions if present.
     ///
     /// # Arguments
     /// * `task` - Task to execute
@@ -392,8 +389,76 @@ impl LoopExecutor {
             .await
             .context("Failed to update iteration status")?;
 
+        if !result.suggested_tasks.is_empty() {
+            self.create_suggested_tasks(
+                &task_repo,
+                &result.suggested_tasks,
+                &task.loop_id,
+                &iteration_id,
+                Some(&task.id),
+            )
+            .await?;
+        }
+
         debug!("Task {} completed successfully", task.id);
         Ok(iteration_id)
+    }
+
+    /// Create tasks from LLM suggestions
+    ///
+    /// Creates new tasks based on LLM suggestions, linking them to the current iteration.
+    ///
+    /// # Arguments
+    /// * `task_repo` - Task repository for creating tasks
+    /// * `suggested_tasks` - Tasks suggested by the LLM
+    /// * `loop_id` - Loop ID to associate tasks with
+    /// * `iteration_id` - Iteration ID to link tasks to
+    /// * `parent_task_id` - Optional parent task ID for hierarchical tasks
+    ///
+    /// # Returns
+    /// Result indicating success or failure
+    async fn create_suggested_tasks(
+        &self,
+        task_repo: &TaskRepository,
+        suggested_tasks: &[ralph_agent::provider::SuggestedTask],
+        loop_id: &str,
+        iteration_id: &str,
+        parent_task_id: Option<&str>,
+    ) -> Result<()> {
+        info!(
+            "Creating {} suggested tasks for iteration {}",
+            suggested_tasks.len(),
+            iteration_id
+        );
+
+        for suggested_task in suggested_tasks {
+            let create_task = ralph_models::CreateTask {
+                loop_id: loop_id.to_string(),
+                title: suggested_task.title.clone(),
+                description: suggested_task.description.clone(),
+                priority: Some(suggested_task.priority),
+                parent_task_id: parent_task_id.map(|id| id.to_string()),
+                created_by: "llm".to_string(),
+            };
+
+            match task_repo.create(create_task).await {
+                Ok(created_task) => {
+                    info!(
+                        "Created suggested task '{}' (ID: {}, priority: {})",
+                        created_task.title, created_task.id, created_task.priority
+                    );
+                }
+                Err(e) => {
+                    error!(
+                        "Failed to create suggested task '{}': {:?}",
+                        suggested_task.title, e
+                    );
+                    // Continue processing other tasks even if one fails
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -1190,11 +1255,225 @@ mod tests {
             .await?;
 
         // Execute task - should complete within timeout (MockLLMProvider is fast)
-        let result = executor.execute_task(&task).await;
-        assert!(
-            result.is_ok(),
-            "Task execution should complete within timeout"
+        executor.execute_task(&task).await?;
+
+        executor.stop(&loop_.id).await?;
+
+        Ok(())
+    }
+
+    /// Integration test: LLM suggestions create new tasks
+    #[tokio::test]
+    #[ignore = "Requires Docker daemon"]
+    async fn test_llm_suggestions_create_new_tasks() -> Result<()> {
+        let pool = Arc::new(
+            sqlx::SqlitePool::connect("sqlite::memory:")
+                .await
+                .context("Failed to create test pool")?,
         );
+        let docker = Arc::new(DockerManager::new());
+        let agent_config = AgentConfig::default();
+
+        let user_repo = ralph_repositories::UserRepository::new((*pool).clone());
+        let password_hash = crate::auth::hash_password("password123")?;
+        let create_user = ralph_models::CreateUser {
+            username: "testuser".to_string(),
+            email: "test@example.com".to_string(),
+            password: password_hash,
+        };
+        let user = user_repo.create(create_user).await?;
+
+        let loop_repo = ralph_repositories::LoopRepository::new((*pool).clone());
+        let create_loop = ralph_models::CreateLoop {
+            name: "Test Loop".to_string(),
+            description: None,
+            prd: "Test PRD".to_string(),
+            owner_id: user.id.clone(),
+            provider: "mock".to_string(),
+            model: "mock".to_string(),
+            docker_image: None,
+            cpu_limit: None,
+            memory_limit: None,
+            max_iterations: Some(10),
+            iteration_timeout: None,
+            iteration_delay: Some(0),
+            git_repo_url: None,
+            git_branch_pattern: None,
+        };
+        let loop_ = loop_repo.create(create_loop).await?;
+
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        executor.start(&loop_.id).await?;
+
+        let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
+        let initial_task = task_repo
+            .create(ralph_models::CreateTask {
+                loop_id: loop_.id.clone(),
+                title: "Initial Task".to_string(),
+                description: "Initial description".to_string(),
+                priority: Some(10),
+                parent_task_id: None,
+                created_by: "user".to_string(),
+            })
+            .await?;
+
+        executor.execute_task(&initial_task).await?;
+
+        let all_tasks = task_repo.list_by_loop(&loop_.id).await?;
+        assert!(all_tasks.len() > 1, "Should have created suggested tasks");
+
+        let suggested_tasks: Vec<_> = all_tasks.iter().filter(|t| t.created_by == "llm").collect();
+        assert!(
+            !suggested_tasks.is_empty(),
+            "Should have LLM-suggested tasks"
+        );
+
+        executor.stop(&loop_.id).await?;
+
+        Ok(())
+    }
+
+    /// Integration test: tasks created with correct priority
+    #[tokio::test]
+    #[ignore = "Requires Docker daemon"]
+    async fn test_tasks_created_with_correct_priority() -> Result<()> {
+        let pool = Arc::new(
+            sqlx::SqlitePool::connect("sqlite::memory:")
+                .await
+                .context("Failed to create test pool")?,
+        );
+        let docker = Arc::new(DockerManager::new());
+        let agent_config = AgentConfig::default();
+
+        let user_repo = ralph_repositories::UserRepository::new((*pool).clone());
+        let password_hash = crate::auth::hash_password("password123")?;
+        let create_user = ralph_models::CreateUser {
+            username: "testuser".to_string(),
+            email: "test@example.com".to_string(),
+            password: password_hash,
+        };
+        let user = user_repo.create(create_user).await?;
+
+        let loop_repo = ralph_repositories::LoopRepository::new((*pool).clone());
+        let create_loop = ralph_models::CreateLoop {
+            name: "Test Loop".to_string(),
+            description: None,
+            prd: "Test PRD".to_string(),
+            owner_id: user.id.clone(),
+            provider: "mock".to_string(),
+            model: "mock".to_string(),
+            docker_image: None,
+            cpu_limit: None,
+            memory_limit: None,
+            max_iterations: Some(10),
+            iteration_timeout: None,
+            iteration_delay: Some(0),
+            git_repo_url: None,
+            git_branch_pattern: None,
+        };
+        let loop_ = loop_repo.create(create_loop).await?;
+
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        executor.start(&loop_.id).await?;
+
+        let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
+        let initial_task = task_repo
+            .create(ralph_models::CreateTask {
+                loop_id: loop_.id.clone(),
+                title: "Initial Task".to_string(),
+                description: "Initial description".to_string(),
+                priority: Some(10),
+                parent_task_id: None,
+                created_by: "user".to_string(),
+            })
+            .await?;
+
+        executor.execute_task(&initial_task).await?;
+
+        let all_tasks = task_repo.list_by_loop(&loop_.id).await?;
+
+        let suggested_tasks: Vec<_> = all_tasks.iter().filter(|t| t.created_by == "llm").collect();
+
+        for task in suggested_tasks {
+            assert!(task.priority >= 0, "Priority should be non-negative");
+            assert!(task.priority <= 100, "Priority should be reasonable");
+        }
+
+        executor.stop(&loop_.id).await?;
+
+        Ok(())
+    }
+
+    /// Integration test: parent_task_id set if hierarchical
+    #[tokio::test]
+    #[ignore = "Requires Docker daemon"]
+    async fn test_parent_task_id_set_if_hierarchical() -> Result<()> {
+        let pool = Arc::new(
+            sqlx::SqlitePool::connect("sqlite::memory:")
+                .await
+                .context("Failed to create test pool")?,
+        );
+        let docker = Arc::new(DockerManager::new());
+        let agent_config = AgentConfig::default();
+
+        let user_repo = ralph_repositories::UserRepository::new((*pool).clone());
+        let password_hash = crate::auth::hash_password("password123")?;
+        let create_user = ralph_models::CreateUser {
+            username: "testuser".to_string(),
+            email: "test@example.com".to_string(),
+            password: password_hash,
+        };
+        let user = user_repo.create(create_user).await?;
+
+        let loop_repo = ralph_repositories::LoopRepository::new((*pool).clone());
+        let create_loop = ralph_models::CreateLoop {
+            name: "Test Loop".to_string(),
+            description: None,
+            prd: "Test PRD".to_string(),
+            owner_id: user.id.clone(),
+            provider: "mock".to_string(),
+            model: "mock".to_string(),
+            docker_image: None,
+            cpu_limit: None,
+            memory_limit: None,
+            max_iterations: Some(10),
+            iteration_timeout: None,
+            iteration_delay: Some(0),
+            git_repo_url: None,
+            git_branch_pattern: None,
+        };
+        let loop_ = loop_repo.create(create_loop).await?;
+
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        executor.start(&loop_.id).await?;
+
+        let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
+        let parent_task = task_repo
+            .create(ralph_models::CreateTask {
+                loop_id: loop_.id.clone(),
+                title: "Parent Task".to_string(),
+                description: "Parent description".to_string(),
+                priority: Some(10),
+                parent_task_id: None,
+                created_by: "user".to_string(),
+            })
+            .await?;
+
+        executor.execute_task(&parent_task).await?;
+
+        let all_tasks = task_repo.list_by_loop(&loop_.id).await?;
+
+        let suggested_tasks: Vec<_> = all_tasks.iter().filter(|t| t.created_by == "llm").collect();
+
+        if !suggested_tasks.is_empty() {
+            let has_parent = suggested_tasks
+                .iter()
+                .any(|t| t.parent_task_id.as_deref() == Some(&parent_task.id));
+            assert!(
+                has_parent,
+                "At least one suggested task should have parent_task_id set"
+            );
+        }
 
         executor.stop(&loop_.id).await?;
 
