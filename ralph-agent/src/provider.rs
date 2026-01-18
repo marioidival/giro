@@ -1,3 +1,4 @@
+use anthropic_rust::{Client, ContentBlock, Model};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -43,6 +44,80 @@ pub struct SuggestedTask {
 pub trait LLMProviderTrait: Send + Sync {
     /// Complete a request to the LLM
     async fn complete(&self, request: &LLMRequest) -> anyhow::Result<LLMResponse>;
+}
+
+/// Anthropic Claude LLM provider
+pub struct ClaudeProvider {
+    client: Client,
+}
+
+impl ClaudeProvider {
+    /// Create a new ClaudeProvider with an API key
+    ///
+    /// # Arguments
+    /// * `api_key` - Anthropic API key
+    pub fn new(api_key: String) -> anyhow::Result<Self> {
+        let client = Client::builder()
+            .api_key(&api_key)
+            .model(Model::Claude35Sonnet20241022)
+            .build()?;
+        Ok(Self { client })
+    }
+
+    /// Build a system prompt from PRD and context
+    fn build_system_prompt(&self, prd: &str, context: &[String]) -> String {
+        let mut prompt = String::from("# Project PRD\n");
+        prompt.push_str(prd);
+        prompt.push_str("\n\n");
+
+        if !context.is_empty() {
+            prompt.push_str("# Context\n");
+            for (i, ctx) in context.iter().enumerate() {
+                prompt.push_str(&format!("## Iteration {}\n{}\n\n", i + 1, ctx));
+            }
+        }
+
+        prompt
+    }
+}
+
+#[async_trait]
+impl LLMProviderTrait for ClaudeProvider {
+    async fn complete(&self, request: &LLMRequest) -> anyhow::Result<LLMResponse> {
+        let system_prompt = self.build_system_prompt(&request.prd, &request.context);
+
+        let mut chat_builder = self.client.chat_builder().system(&system_prompt);
+
+        for ctx in &request.context {
+            chat_builder = chat_builder.user_message(ContentBlock::text(ctx));
+        }
+
+        chat_builder = chat_builder.user_message(ContentBlock::text(&request.task));
+
+        let chat_request = chat_builder.build();
+        let response = self.client.execute_chat(chat_request).await?;
+
+        let content: String = response
+            .content
+            .iter()
+            .filter_map(|block| {
+                if let ContentBlock::Text { text, .. } = block {
+                    Some(text.clone())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let tokens_used = response.usage.input_tokens + response.usage.output_tokens;
+
+        Ok(LLMResponse {
+            content,
+            tokens_used,
+            suggested_tasks: vec![],
+            commands: vec![],
+        })
+    }
 }
 
 #[cfg(test)]
@@ -137,5 +212,60 @@ mod tests {
 
         assert!(deserialized.suggested_tasks.is_empty());
         assert!(deserialized.commands.is_empty());
+    }
+
+    #[test]
+    fn test_claude_provider_build_system_prompt_with_context() {
+        let provider =
+            ClaudeProvider::new("sk-ant-api03-test-key-for-testing".to_string()).unwrap();
+        let prd = "Build a web server";
+        let context = vec![
+            "Iteration 1: Created HTTP handler".to_string(),
+            "Iteration 2: Added authentication".to_string(),
+        ];
+
+        let prompt = provider.build_system_prompt(prd, &context);
+
+        assert!(prompt.contains("# Project PRD"));
+        assert!(prompt.contains("Build a web server"));
+        assert!(prompt.contains("# Context"));
+        assert!(prompt.contains("Iteration 1: Created HTTP handler"));
+        assert!(prompt.contains("Iteration 2: Added authentication"));
+    }
+
+    #[test]
+    fn test_claude_provider_build_system_prompt_without_context() {
+        let provider =
+            ClaudeProvider::new("sk-ant-api03-test-key-for-testing".to_string()).unwrap();
+        let prd = "Build a CLI tool";
+        let context = vec![];
+
+        let prompt = provider.build_system_prompt(prd, &context);
+
+        assert!(prompt.contains("# Project PRD"));
+        assert!(prompt.contains("Build a CLI tool"));
+        assert!(!prompt.contains("# Context"));
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires ANTHROPIC_API_KEY environment variable"]
+    async fn test_claude_provider_integration() {
+        let api_key = std::env::var("ANTHROPIC_API_KEY")
+            .expect("ANTHROPIC_API_KEY must be set for integration test");
+
+        let provider = ClaudeProvider::new(api_key).unwrap();
+        let request = LLMRequest {
+            prd: "Build a simple calculator".to_string(),
+            task: "What is 2 + 2?".to_string(),
+            context: vec![],
+            max_tokens: Some(100),
+        };
+
+        let result = provider.complete(&request).await.unwrap();
+
+        assert!(!result.content.is_empty());
+        assert!(result.tokens_used > 0);
+        assert!(result.suggested_tasks.is_empty());
+        assert!(result.commands.is_empty());
     }
 }

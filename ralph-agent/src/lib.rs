@@ -5,3 +5,4 @@ pub mod provider;
 pub mod tools;
 
 pub use mocks::MockLLMProvider;
+pub use provider::ClaudeProvider;
