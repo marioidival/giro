@@ -393,7 +393,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-services/src/executor.rs` (part 2)",
-      "commit_message": "`feat: add LoopExecutor (resume, stop)`"
+      "commit_message": "`feat: add LoopExecutor (resume, stop)`",
+      "status": "done"
     },
     {
       "issue_number": 39,
