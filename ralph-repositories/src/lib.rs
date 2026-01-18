@@ -7,3 +7,4 @@ pub mod user;
 
 pub use database::Database;
 pub use loop_::LoopRepository;
+pub use task::TaskRepository;
