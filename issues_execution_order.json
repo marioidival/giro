@@ -233,7 +233,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-agent/src/provider.rs` (part 2)",
-      "commit_message": "`feat: add Claude LLM provider implementation`"
+      "commit_message": "`feat: add Claude LLM provider implementation`",
+      "status": "done"
     },
     {
       "issue_number": 23,
