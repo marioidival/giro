@@ -572,7 +572,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/src/middleware/rate_limit.rs`",
-      "commit_message": "`feat: add rate limiting middleware`"
+      "commit_message": "`feat: add rate limiting middleware`",
+      "status": "done"
     },
     {
       "issue_number": 57,
@@ -581,7 +582,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/src/middleware/csrf.rs`",
-      "commit_message": "`feat: add CSRF protection middleware`"
+      "commit_message": "`feat: add CSRF protection middleware`",
+      "status": "done"
     },
     {
       "issue_number": 58,
