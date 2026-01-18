@@ -116,6 +116,81 @@ impl LoopExecutor {
         Ok(())
     }
 
+    /// Resume a paused loop
+    ///
+    /// # Arguments
+    /// * `loop_id` - ID of the loop to resume
+    ///
+    /// # Returns
+    /// Result indicating success or failure
+    pub async fn resume(&self, loop_id: &str) -> Result<()> {
+        info!("Resuming loop {}", loop_id);
+
+        let loop_repo = LoopRepository::new((*self.pool).clone());
+        let loop_ = loop_repo
+            .find_by_id(loop_id)
+            .await?
+            .context("Loop not found")?;
+
+        let container_id = loop_
+            .container_id
+            .context("Loop has no associated container")?;
+
+        debug!("Unpausing container {}", container_id);
+        self.docker.unpause(&container_id).await?;
+
+        debug!("Updating loop status to Running");
+        loop_repo
+            .update_status(loop_id, LoopStatus::Running, None)
+            .await?;
+
+        let executor = self.clone();
+        let loop_id_owned = loop_id.to_string();
+        tokio::spawn(async move {
+            if let Err(e) = executor.execution_loop(&loop_id_owned).await {
+                tracing::error!("Execution loop error for {}: {:?}", loop_id_owned, e);
+            }
+        });
+
+        info!("Loop {} resumed successfully", loop_id);
+        Ok(())
+    }
+
+    /// Stop a running or paused loop
+    ///
+    /// # Arguments
+    /// * `loop_id` - ID of the loop to stop
+    ///
+    /// # Returns
+    /// Result indicating success or failure
+    pub async fn stop(&self, loop_id: &str) -> Result<()> {
+        info!("Stopping loop {}", loop_id);
+
+        let loop_repo = LoopRepository::new((*self.pool).clone());
+        let loop_ = loop_repo
+            .find_by_id(loop_id)
+            .await?
+            .context("Loop not found")?;
+
+        let container_id = loop_
+            .container_id
+            .context("Loop has no associated container")?;
+
+        debug!("Stopping container {}", container_id);
+        self.docker.stop(&container_id, Some(10)).await?;
+
+        debug!("Removing container {}", container_id);
+        self.docker.remove(&container_id, true, true).await?;
+
+        debug!("Updating loop status to Completed");
+        loop_repo
+            .update_status(loop_id, LoopStatus::Completed, None)
+            .await?;
+
+        info!("Loop {} stopped successfully", loop_id);
+        Ok(())
+    }
+
     /// Main execution loop for a running Ralph loop
     ///
     /// This is a stub implementation. Full execution logic will be implemented in a future task.
@@ -149,6 +224,24 @@ mod tests {
     #[tokio::test]
     #[ignore = "Requires Docker daemon"]
     async fn test_pause_loop_pauses_container() -> Result<()> {
+        // This test requires database setup and Docker
+        // Will be implemented with full integration test setup
+        Ok(())
+    }
+
+    /// Integration test: resume loop unpauses and restarts execution
+    #[tokio::test]
+    #[ignore = "Requires Docker daemon"]
+    async fn test_resume_loop_unpauses_and_restarts_execution() -> Result<()> {
+        // This test requires database setup and Docker
+        // Will be implemented with full integration test setup
+        Ok(())
+    }
+
+    /// Integration test: stop loop cleans up container
+    #[tokio::test]
+    #[ignore = "Requires Docker daemon"]
+    async fn test_stop_loop_cleans_up_container() -> Result<()> {
         // This test requires database setup and Docker
         // Will be implemented with full integration test setup
         Ok(())
