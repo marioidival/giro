@@ -123,7 +123,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-repositories/Cargo.toml`, `ralph-repositories/src/lib.rs`",
-      "commit_message": "`feat: create ralph-repositories crate structure`"
+      "commit_message": "`feat: create ralph-repositories crate structure`",
+      "status": "done"
     },
     {
       "issue_number": 12,
