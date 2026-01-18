@@ -57,8 +57,7 @@ impl ApiKeyRepository {
     /// ```
     pub async fn create(&self, create_key: CreateApiKey) -> Result<ApiKey> {
         // Encrypt the API key before storing
-        let encrypted_key = encrypt_token(&create_key.key)
-            .context("Failed to encrypt API key")?;
+        let encrypted_key = encrypt_token(&create_key.key).context("Failed to encrypt API key")?;
 
         let key = ApiKey::new(
             create_key.user_id,
@@ -199,16 +198,14 @@ impl ApiKeyRepository {
         .context("Failed to query active API key by user and provider")?;
 
         Ok(result.map(
-            |(id, user_id, provider, encrypted_key, is_active, created_at, updated_at)| {
-                ApiKey {
-                    id,
-                    user_id,
-                    provider: provider.parse().unwrap_or(ApiKeyProvider::Anthropic),
-                    encrypted_key,
-                    is_active,
-                    created_at,
-                    updated_at,
-                }
+            |(id, user_id, provider, encrypted_key, is_active, created_at, updated_at)| ApiKey {
+                id,
+                user_id,
+                provider: provider.parse().unwrap_or(ApiKeyProvider::Anthropic),
+                encrypted_key,
+                is_active,
+                created_at,
+                updated_at,
             },
         ))
     }
@@ -500,7 +497,9 @@ mod tests {
 
         repo.deactivate(&key.id, &user.id).await?;
 
-        let found = repo.get_active_for_user(&user.id, ApiKeyProvider::Anthropic).await?;
+        let found = repo
+            .get_active_for_user(&user.id, ApiKeyProvider::Anthropic)
+            .await?;
 
         assert!(found.is_none());
 
@@ -581,7 +580,9 @@ mod tests {
 
         repo.delete(&key.id, &user.id).await?;
 
-        let found = repo.get_active_for_user(&user.id, ApiKeyProvider::Anthropic).await?;
+        let found = repo
+            .get_active_for_user(&user.id, ApiKeyProvider::Anthropic)
+            .await?;
 
         assert!(found.is_none());
 

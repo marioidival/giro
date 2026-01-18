@@ -1124,6 +1124,25 @@ mod tests {
             .await
             .unwrap();
 
+            sqlx::query(
+                r#"
+                CREATE TABLE IF NOT EXISTS api_keys (
+                    id TEXT PRIMARY KEY,
+                    user_id TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    encrypted_key TEXT NOT NULL,
+                    is_active INTEGER NOT NULL DEFAULT 1,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    UNIQUE(user_id, provider),
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                "#,
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+
             // Insert test users to satisfy foreign key constraints
             sqlx::query(
                 r#"
@@ -1145,10 +1164,12 @@ mod tests {
             let task_repository = TaskRepository::new(pool.clone());
             let git_credentials_repository =
                 ralph_repositories::GitCredentialsRepository::new(pool.clone());
+            let api_key_repository = ralph_repositories::ApiKeyRepository::new(pool.clone());
 
             let docker = Arc::new(ralph_services::DockerManager::new());
             let agent_config = ralph_agent::agent::AgentConfig::default();
-            let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config, None);
+            let loop_executor =
+                LoopExecutor::new(Arc::new(pool), docker, agent_config, None, Arc::new(api_key_repository.clone()));
 
             let broadcast_manager = crate::websocket::BroadcastManager::new();
 
@@ -1159,6 +1180,7 @@ mod tests {
                 loop_repository,
                 task_repository,
                 git_credentials_repository,
+                api_key_repository,
                 loop_executor,
                 broadcast_manager,
             )

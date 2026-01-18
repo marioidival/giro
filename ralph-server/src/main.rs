@@ -6,7 +6,8 @@
 use anyhow::{Context, Result};
 use ralph_agent::agent::AgentConfig;
 use ralph_repositories::{
-    Database, GitCredentialsRepository, LoopRepository, TaskRepository, UserRepository,
+    ApiKeyRepository, Database, GitCredentialsRepository, LoopRepository, TaskRepository,
+    UserRepository,
 };
 use ralph_services::{AuthService, DockerManager, LoopExecutor};
 use std::env;
@@ -51,9 +52,16 @@ async fn main() -> Result<()> {
     let loop_repository = LoopRepository::new(pool.clone());
     let task_repository = TaskRepository::new(pool.clone());
     let git_credentials_repository = GitCredentialsRepository::new(pool.clone());
+    let api_key_repository = ApiKeyRepository::new(pool.clone());
 
     let agent_config = AgentConfig::default();
-    let loop_executor = LoopExecutor::new(Arc::new(pool), docker.clone(), agent_config, None);
+    let loop_executor = LoopExecutor::new(
+        Arc::new(pool),
+        docker.clone(),
+        agent_config,
+        None,
+        Arc::new(api_key_repository.clone()),
+    );
 
     let broadcast_manager = BroadcastManager::new();
 
@@ -64,6 +72,7 @@ async fn main() -> Result<()> {
         loop_repository,
         task_repository,
         git_credentials_repository,
+        api_key_repository,
         loop_executor,
         broadcast_manager,
     );

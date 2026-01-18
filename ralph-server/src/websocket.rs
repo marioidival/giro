@@ -479,15 +479,41 @@ mod tests {
         .await
         .unwrap();
 
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                encrypted_key TEXT NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(user_id, provider),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
         let user_repo = ralph_repositories::UserRepository::new(pool.clone());
         let auth_service = AuthService::new(user_repo);
         let loop_repository = LoopRepository::new(pool.clone());
         let task_repository = TaskRepository::new(pool.clone());
         let git_credentials_repository =
             ralph_repositories::GitCredentialsRepository::new(pool.clone());
+        let api_key_repository = ralph_repositories::ApiKeyRepository::new(pool.clone());
         let docker = Arc::new(DockerManager::new());
         let agent_config = ralph_agent::agent::AgentConfig::default();
-        let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config, None);
+        let loop_executor = LoopExecutor::new(
+            Arc::new(pool),
+            docker,
+            agent_config,
+            None,
+            Arc::new(api_key_repository.clone()),
+        );
         let broadcast_manager = BroadcastManager::new();
 
         let _state = crate::handlers::auth::AppState::new(
@@ -497,6 +523,7 @@ mod tests {
             loop_repository.clone(),
             task_repository,
             git_credentials_repository,
+            api_key_repository,
             loop_executor,
             broadcast_manager.clone(),
         );

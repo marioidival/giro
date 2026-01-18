@@ -1,9 +1,14 @@
+pub mod api_keys;
 pub mod auth;
 pub mod git;
 pub mod health;
 pub mod loops;
 pub mod tasks;
 
+pub use api_keys::{ApiKeySummary, ListApiKeysResponse, create_api_key, list_api_keys};
+pub use api_keys::{
+    CreateApiKeyRequest, CreateApiKeyResponse, DeactivateApiKeyResponse, deactivate_api_key,
+};
 pub use auth::{AppState, login, logout, register};
 pub use git::{
     CreateGitCredentialRequest, DeleteGitCredentialResponse, GitCredentialSummary,

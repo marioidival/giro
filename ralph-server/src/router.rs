@@ -3,6 +3,7 @@
 //! This module configures Axum router with all route handlers and middleware.
 
 use crate::handlers::{
+    api_keys::{create_api_key, deactivate_api_key, list_api_keys},
     auth::{AppState, login, logout, register},
     git::{
         create_git_credentials, delete_git_credentials, git_credentials_page, list_git_credentials,
@@ -112,6 +113,11 @@ pub fn create_router(state: AppState) -> Router {
 /// - `GET /api/git/credentials` - List all Git credentials for the authenticated user
 /// - `POST /api/git/credentials` - Create a new Git credential
 /// - `DELETE /api/git/credentials/:id` - Delete a Git credential
+///
+/// ## API Keys
+/// - `GET /api/keys` - List all API keys for the authenticated user
+/// - `POST /api/keys` - Create a new API key
+/// - `DELETE /api/keys/:id` - Deactivate an API key
 fn protected_routes() -> Router<AppState> {
     Router::new()
         .route("/loops", get(list_loops_page))
@@ -133,6 +139,8 @@ fn protected_routes() -> Router<AppState> {
             get(list_git_credentials).post(create_git_credentials),
         )
         .route("/api/git/credentials/{id}", delete(delete_git_credentials))
+        .route("/api/keys", get(list_api_keys).post(create_api_key))
+        .route("/api/keys/{id}", delete(deactivate_api_key))
         .route_layer(axum::middleware::from_fn(csrf_middleware))
         .route_layer(axum::middleware::from_fn(auth_middleware))
 }
@@ -339,6 +347,25 @@ mod integration_tests {
         .await
         .unwrap();
 
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS api_keys (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                encrypted_key TEXT NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(user_id, provider),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
         let user_repo = ralph_repositories::UserRepository::new(pool.clone());
         let auth_service = AuthService::new(user_repo);
         let session_store = SessionStore::new();
@@ -346,10 +373,12 @@ mod integration_tests {
         let loop_repository = LoopRepository::new(pool.clone());
         let task_repository = TaskRepository::new(pool.clone());
         let git_credentials_repository = GitCredentialsRepository::new(pool.clone());
+        let api_key_repository = ralph_repositories::ApiKeyRepository::new(pool.clone());
 
         let docker = Arc::new(DockerManager::new());
         let agent_config = ralph_agent::agent::AgentConfig::default();
-        let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config, None);
+        let loop_executor =
+            LoopExecutor::new(Arc::new(pool), docker, agent_config, None, Arc::new(api_key_repository.clone()));
 
         let broadcast_manager = crate::websocket::BroadcastManager::new();
 
@@ -360,6 +389,7 @@ mod integration_tests {
             loop_repository,
             task_repository,
             git_credentials_repository,
+            api_key_repository,
             loop_executor,
             broadcast_manager,
         )

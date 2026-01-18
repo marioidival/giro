@@ -10,7 +10,9 @@ use axum::{
     http::{HeaderMap, StatusCode},
 };
 use ralph_models::{CreateUser, LoginUser};
-use ralph_repositories::{GitCredentialsRepository, LoopRepository, TaskRepository};
+use ralph_repositories::{
+    ApiKeyRepository, GitCredentialsRepository, LoopRepository, TaskRepository,
+};
 use ralph_services::{AuthService, LoopExecutor};
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +37,8 @@ pub struct AppState {
     pub task_repository: TaskRepository,
     /// Git credentials repository for Git credential database operations
     pub git_credentials_repository: GitCredentialsRepository,
+    /// API key repository for API key database operations
+    pub api_key_repository: ApiKeyRepository,
     /// Loop executor for controlling loop execution (start, pause, resume, stop)
     pub loop_executor: LoopExecutor,
     /// Broadcast manager for WebSocket connections
@@ -51,6 +55,7 @@ impl AppState {
     /// * `loop_repository` - The loop repository instance
     /// * `task_repository` - The task repository instance
     /// * `git_credentials_repository` - The git credentials repository instance
+    /// * `api_key_repository` - The API key repository instance
     /// * `loop_executor` - The loop executor instance for controlling loop execution
     /// * `broadcast_manager` - The broadcast manager instance for WebSocket connections
     #[allow(clippy::too_many_arguments)]
@@ -61,6 +66,7 @@ impl AppState {
         loop_repository: LoopRepository,
         task_repository: TaskRepository,
         git_credentials_repository: GitCredentialsRepository,
+        api_key_repository: ApiKeyRepository,
         loop_executor: LoopExecutor,
         broadcast_manager: crate::websocket::BroadcastManager,
     ) -> Self {
@@ -71,6 +77,7 @@ impl AppState {
             loop_repository,
             task_repository,
             git_credentials_repository,
+            api_key_repository,
             loop_executor,
             broadcast_manager,
         }

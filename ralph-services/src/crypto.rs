@@ -1,9 +1,9 @@
 use aes_gcm::{
-    aead::{Aead, AeadCore, KeyInit, OsRng},
     Aes256Gcm, Nonce,
+    aead::{Aead, AeadCore, KeyInit, OsRng},
 };
-use anyhow::{anyhow, Context, Result};
-use base64::{engine::general_purpose::STANDARD, Engine};
+use anyhow::{Context, Result, anyhow};
+use base64::{Engine, engine::general_purpose::STANDARD};
 use hex::FromHex;
 
 /// Encryption key size for Aes256Gcm (32 bytes)
@@ -17,11 +17,13 @@ const NONCE_SIZE: usize = 12;
 /// The ENCRYPTION_KEY environment variable must be a 64-character hex string
 /// representing a 32-byte key for Aes256Gcm encryption.
 fn get_encryption_key() -> Result<[u8; KEY_SIZE]> {
-    let hex_key = std::env::var("ENCRYPTION_KEY")
-        .context("ENCRYPTION_KEY environment variable not set")?;
+    let hex_key =
+        std::env::var("ENCRYPTION_KEY").context("ENCRYPTION_KEY environment variable not set")?;
 
     if hex_key.len() != 64 {
-        return Err(anyhow!("ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)"));
+        return Err(anyhow!(
+            "ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)"
+        ));
     }
 
     <[u8; KEY_SIZE]>::from_hex(hex_key)
@@ -43,8 +45,8 @@ fn get_encryption_key() -> Result<[u8; KEY_SIZE]> {
 /// 4. Combine nonce + ciphertext and encode as base64
 pub fn encrypt_api_key(plaintext: &str) -> Result<String> {
     let key = get_encryption_key()?;
-    let cipher = Aes256Gcm::new_from_slice(&key)
-        .map_err(|_| anyhow!("Invalid encryption key length"))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(&key).map_err(|_| anyhow!("Invalid encryption key length"))?;
 
     let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
     let ciphertext = cipher
@@ -74,10 +76,12 @@ pub fn encrypt_api_key(plaintext: &str) -> Result<String> {
 /// 4. Decrypt ciphertext with key and nonce
 pub fn decrypt_api_key(encrypted: &str) -> Result<String> {
     let key = get_encryption_key()?;
-    let cipher = Aes256Gcm::new_from_slice(&key)
-        .map_err(|_| anyhow!("Invalid encryption key length"))?;
+    let cipher =
+        Aes256Gcm::new_from_slice(&key).map_err(|_| anyhow!("Invalid encryption key length"))?;
 
-    let combined = STANDARD.decode(encrypted).context("Base64 decoding failed")?;
+    let combined = STANDARD
+        .decode(encrypted)
+        .context("Base64 decoding failed")?;
 
     if combined.len() < NONCE_SIZE {
         return Err(anyhow!("Encrypted data is too short"));
@@ -166,14 +170,18 @@ mod tests {
     #[test]
     #[serial_test::serial]
     fn test_missing_encryption_key() {
-        unsafe { std::env::remove_var("ENCRYPTION_KEY"); }
+        unsafe {
+            std::env::remove_var("ENCRYPTION_KEY");
+        }
 
         let result = encrypt_api_key("test-key");
         assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("ENCRYPTION_KEY environment variable not set"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("ENCRYPTION_KEY environment variable not set")
+        );
     }
 
     // Test error handling for invalid base64
