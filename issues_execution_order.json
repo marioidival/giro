@@ -463,7 +463,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/src/validation.rs`",
-      "commit_message": "`feat: add input validation utilities`"
+      "commit_message": "`feat: add input validation utilities`",
+      "status": "done"
     },
     {
       "issue_number": 46,
