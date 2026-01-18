@@ -287,7 +287,7 @@ mod tests {
         let template = LoopDetailTemplate {
             logged_in: true,
             csrf_token: "test-csrf-token".to_string(),
-            loop_detail: loop_detail,
+            loop_detail,
             tasks: vec![],
         };
         let result = template.render();
@@ -372,7 +372,7 @@ mod tests {
         let template = LoopDetailTemplate {
             logged_in: true,
             csrf_token: "test-csrf-token".to_string(),
-            loop_detail: loop_detail,
+            loop_detail,
             tasks: vec![task1, task2],
         };
         let html = template.render().unwrap();
@@ -414,7 +414,7 @@ mod tests {
         let template = LoopDetailTemplate {
             logged_in: true,
             csrf_token: "test-csrf-token".to_string(),
-            loop_detail: loop_detail,
+            loop_detail,
             tasks: vec![],
         };
         let html = template.render().unwrap();
@@ -454,7 +454,7 @@ mod tests {
         let template = LoopDetailTemplate {
             logged_in: true,
             csrf_token: "test-csrf-token".to_string(),
-            loop_detail: loop_detail,
+            loop_detail,
             tasks: vec![],
         };
         let html = template.render().unwrap();
