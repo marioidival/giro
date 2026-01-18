@@ -18,4 +18,4 @@ when finished, close the issue on github using gh and remove the id from queue (
 
 git push origin trunk, never create new branches
 
-close opencode or claude
+exit, stop, quit, leave, stop, quit, leave
