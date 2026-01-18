@@ -1,3 +1,4 @@
+pub mod api_key;
 pub mod crypto;
 pub mod database;
 pub mod file;
@@ -7,6 +8,7 @@ pub mod loop_;
 pub mod task;
 pub mod user;
 
+pub use api_key::ApiKeyRepository;
 pub use crypto::{decrypt_token, encrypt_token};
 pub use database::Database;
 pub use file::FileRepository;
