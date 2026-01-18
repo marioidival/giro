@@ -627,6 +627,16 @@
       "status": "done"
     },
     {
+      "issue_number": 58,
+      "task_id": "3.15",
+      "title": "3.15: Add WebSocket for Real-time Updates",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/websocket.rs`",
+      "commit_message": "`feat: add WebSocket route for real-time progress updates`",
+      "status": "done"
+    },
+    {
       "issue_number": 63,
       "task_id": "3.20",
       "title": "3.20: Create Loop Detail Template",
@@ -638,15 +648,6 @@
     }
   ],
   "issues": [
-    {
-      "issue_number": 58,
-      "task_id": "3.15",
-      "title": "3.15: Add WebSocket for Real-time Updates",
-      "sprint": "Sprint 3: HTTP Server & Frontend",
-      "sprint_number": 3,
-      "files": "`ralph-server/src/websocket.rs`",
-      "commit_message": "`feat: add WebSocket for real-time progress updates`"
-    },
     {
       "issue_number": 62,
       "task_id": "3.19",
