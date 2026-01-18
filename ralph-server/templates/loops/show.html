@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}{{ loop_detail.name }} - Ralph Loop Manager{% endblock %}
+
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+<script>
+    // WebSocket connection for real-time updates
+    document.addEventListener('DOMContentLoaded', function() {
+        const loopId = '{{ loop_detail.id }}';
+        const wsUrl = `ws://${window.location.host}/api/loops/${loopId}/stream`;
+
+        function connectWebSocket() {
+            const ws = new WebSocket(wsUrl);
+
+            ws.onopen = function() {
+                console.log('WebSocket connected');
+            };
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+
+                // Update loop status
+                if (data.status) {
+                    const statusBadge = document.getElementById('loop-status');
+                    if (statusBadge) {
+                        statusBadge.textContent = data.status;
+                        updateStatusBadge(statusBadge, data.status);
+                    }
+                }
+
+                // Update task list if tasks changed
+                if (data.tasks_changed) {
+                    htmx.ajax('GET', `/api/loops/${loopId}/tasks`, {
+                        target: '#task-list',
+                        swap: 'innerHTML'
+                    });
+                }
+
+                // Update iteration count
+                if (data.current_iteration !== undefined) {
+                    const iterEl = document.getElementById('current-iteration');
+                    if (iterEl) {
+                        iterEl.textContent = data.current_iteration;
+                    }
+                }
+            };
+
+            ws.onclose = function() {
+                console.log('WebSocket disconnected, reconnecting in 3s...');
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function updateStatusBadge(element, status) {
+            element.className = 'inline-flex rounded-full px-2 text-xs font-semibold leading-5';
+            switch(status) {
+                case 'running':
+                    element.classList.add('bg-green-100', 'text-green-800');
+                    break;
+                case 'paused':
+                    element.classList.add('bg-yellow-100', 'text-yellow-800');
+                    break;
+                case 'completed':
+                    element.classList.add('bg-blue-100', 'text-blue-800');
+                    break;
+                case 'error':
+                    element.classList.add('bg-red-100', 'text-red-800');
+                    break;
+                default:
+                    element.classList.add('bg-gray-100', 'text-gray-800');
+            }
+        }
+
+        connectWebSocket();
+    });
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <!-- Back button -->
+    <div class="mb-4">
+        <a href="/loops" class="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-900">
+            <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+            </svg>
+            Back to Loops
+        </a>
+    </div>
+
+    <!-- Loop header -->
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <div class="flex items-center">
+                <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                    {{ loop_detail.name }}
+                </h2>
+                <span id="loop-status" class="ml-3 inline-flex rounded-full px-2 text-xs font-semibold leading-5
+                    {% if loop_detail.status == "running" %} bg-green-100 text-green-800
+                    {% elif loop_detail.status == "paused" %} bg-yellow-100 text-yellow-800
+                    {% elif loop_detail.status == "completed" %} bg-blue-100 text-blue-800
+                    {% elif loop_detail.status == "error" %} bg-red-100 text-red-800
+                    {% else %} bg-gray-100 text-gray-800 {% endif %}">
+                    {{ loop_detail.status }}
+                </span>
+            </div>
+            {% if loop_detail.description.is_some() %}
+            <p class="mt-1 text-sm text-gray-500">{{ loop_detail.description.as_ref().unwrap() }}</p>
+            {% endif %}
+        </div>
+        <div class="mt-4 flex md:mt-0 md:ml-4 space-x-2">
+            <button
+                type="button"
+                hx-post="/api/loops/{{ loop_detail.id }}/start"
+                hx-boost="true"
+                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+                <svg class="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg>
+                Start
+            </button>
+            <button
+                type="button"
+                hx-post="/api/loops/{{ loop_detail.id }}/pause"
+                hx-boost="true"
+                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+            >
+                <svg class="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
+                </svg>
+                Pause
+            </button>
+            <button
+                type="button"
+                hx-post="/api/loops/{{ loop_detail.id }}/resume"
+                hx-boost="true"
+                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+                <svg class="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg>
+                Resume
+            </button>
+            <button
+                type="button"
+                hx-post="/api/loops/{{ loop_detail.id }}/stop"
+                hx-boost="true"
+                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+            >
+                <svg class="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+                </svg>
+                Stop
+            </button>
+        </div>
+    </div>
+
+    <!-- Loop details -->
+    <div class="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
+        <!-- PRD and Config -->
+        <div class="lg:col-span-2 bg-white shadow overflow-hidden sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Product Requirements Document</h3>
+            </div>
+            <div class="px-4 py-5 sm:px-6 bg-gray-50">
+                <div class="prose prose-sm max-w-none">
+                    <pre class="whitespace-pre-wrap text-sm text-gray-700">{{ loop_detail.prd }}</pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+            <div class="px-4 py-5 sm:px-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Configuration</h3>
+            </div>
+            <div class="border-t border-gray-200">
+                <dl class="sm:divide-y sm:divide-gray-200">
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Provider</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ loop_detail.provider }}</dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Model</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ loop_detail.model }}</dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Docker Image</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 font-mono text-xs">{{ loop_detail.docker_image }}</dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">CPU Limit</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ loop_detail.cpu_limit }} vCPU</dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Memory Limit</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ loop_detail.memory_limit }} MB</dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Max Iterations</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ loop_detail.max_iterations }}</dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Current Iteration</dt>
+                        <dd id="current-iteration" class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ loop_detail.current_iteration }}</dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Iteration Timeout</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ loop_detail.iteration_timeout }}s</dd>
+                    </div>
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Iteration Delay</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ loop_detail.iteration_delay }}s</dd>
+                    </div>
+                    {% if loop_detail.git_repo_url.is_some() %}
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Git Repo</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">
+                            <a href="{{ loop_detail.git_repo_url.as_ref().unwrap() }}" target="_blank" class="text-indigo-600 hover:text-indigo-900 font-mono text-xs">
+                                {{ loop_detail.git_repo_url.as_ref().unwrap() }}
+                            </a>
+                        </dd>
+                    </div>
+                    {% endif %}
+                    <div class="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Created</dt>
+                        <dd class="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{{ loop_detail.created_at[..10] }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tasks section -->
+    <div class="mt-8 bg-white shadow sm:rounded-lg">
+        <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Tasks</h3>
+                <button
+                    type="button"
+                    hx-get="/api/loops/{{ loop_detail.id }}/tasks/new"
+                    hx-target="#task-form-container"
+                    hx-swap="innerHTML"
+                    class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                    <svg class="-ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                    Add Task
+                </button>
+            </div>
+        </div>
+
+        <!-- Task form container -->
+        <div id="task-form-container"></div>
+
+        <!-- Task list -->
+        <div id="task-list">
+            {% if tasks.is_empty() %}
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+                <h3 class="mt-2 text-sm font-medium text-gray-900">No tasks</h3>
+                <p class="mt-1 text-sm text-gray-500">Get started by adding a task to this loop.</p>
+            </div>
+            {% else %}
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 p-4">
+                {% for task in tasks %}
+                <div class="border border-gray-300 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div class="flex items-start justify-between">
+                        <div class="flex-1">
+                            <h4 class="text-sm font-medium text-gray-900">{{ task.title }}</h4>
+                        </div>
+                        <span class="ml-2 inline-flex rounded-full px-2 text-xs font-semibold leading-5
+                            {% if task.status == "pending" %} bg-gray-100 text-gray-800
+                            {% elif task.status == "in_progress" %} bg-blue-100 text-blue-800
+                            {% elif task.status == "completed" %} bg-green-100 text-green-800
+                            {% elif task.status == "failed" %} bg-red-100 text-red-800
+                            {% elif task.status == "cancelled" %} bg-yellow-100 text-yellow-800
+                            {% else %} bg-gray-100 text-gray-800 {% endif %}">
+                            {{ task.status }}
+                        </span>
+                    </div>
+                    <div class="mt-3 flex items-center justify-between text-xs text-gray-500">
+                        <span>Priority: {{ task.priority }}</span>
+                        <span>By: {{ task.created_by }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

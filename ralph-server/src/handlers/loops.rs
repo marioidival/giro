@@ -15,8 +15,9 @@ use ralph_models::CreateLoop;
 use serde::{Deserialize, Serialize};
 
 use crate::handlers::auth::AppState;
+use crate::handlers::tasks::TaskSummary;
 use crate::middleware::csrf::CsrfToken;
-use crate::templates::{LoopFormTemplate, LoopListTemplate};
+use crate::templates::{LoopDetailTemplate, LoopFormTemplate, LoopListTemplate};
 use crate::validation::validate_loop_name;
 
 /// Query parameters for listing loops with pagination.
@@ -28,6 +29,79 @@ pub struct ListLoopsQuery {
     /// Number of items per page (defaults to 10)
     #[serde(default = "default_limit")]
     pub limit: usize,
+}
+
+/// Handles rendering the loop detail page (HTML).
+///
+/// This endpoint:
+/// 1. Extracts user_id from auth middleware
+/// 2. Checks if user is logged in
+/// 3. Generates CSRF token
+/// 4. Retrieves loop by id with ownership check
+/// 5. Retrieves tasks for the loop
+/// 6. Renders the loop detail template with WebSocket for real-time updates
+///
+/// # Arguments
+/// * `path` - Path parameters containing loop ID
+/// * `state` - The application state containing repositories
+/// * `user_id` - The authenticated user's ID (from auth middleware)
+///
+/// # Returns
+/// * `200 OK` with HTML template on success
+/// * `401 Unauthorized` if user doesn't own the loop
+/// * `404 Not Found` if loop doesn't exist
+/// * `500 Internal Server Error` for server errors
+pub async fn get_loop_page(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<String>,
+    Path(id): Path<String>,
+) -> (StatusCode, Html<String>) {
+    let logged_in = !user_id.is_empty();
+
+    // Get loop with ownership check
+    let loop_detail = match state.loop_repository.find_by_id(&id).await {
+        Ok(Some(loop_)) => {
+            if loop_.owner_id != user_id {
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    Html("You do not have permission to view this loop".to_string()),
+                );
+            }
+            LoopDetail::from(loop_)
+        }
+        Ok(None) => {
+            return (StatusCode::NOT_FOUND, Html("Loop not found".to_string()));
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Html(format!("Failed to retrieve loop: {}", e)),
+            );
+        }
+    };
+
+    // Get tasks for the loop
+    let tasks = match state.task_repository.list_by_loop(&id).await {
+        Ok(task_list) => task_list.into_iter().map(TaskSummary::from).collect(),
+        Err(_e) => Vec::new(),
+    };
+
+    let csrf_token = CsrfToken::generate().to_string();
+
+    let template = LoopDetailTemplate {
+        logged_in,
+        csrf_token,
+        loop_detail,
+        tasks,
+    };
+
+    match template.render() {
+        Ok(html) => (StatusCode::OK, Html(html)),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Html(format!("Failed to render template: {}", e)),
+        ),
+    }
 }
 
 /// Response structure for creating a loop.
