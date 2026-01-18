@@ -9,16 +9,19 @@ pub struct User {
     pub email: String,
     pub password_hash: String,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl User {
     pub fn new(username: String, email: String, password_hash: String) -> Self {
+        let now = Utc::now();
         Self {
             id: Uuid::new_v4().to_string(),
             username,
             email,
             password_hash,
-            created_at: Utc::now(),
+            created_at: now,
+            updated_at: now,
         }
     }
 }
@@ -138,5 +141,7 @@ mod tests {
         assert_eq!(user.username, deserialized.username);
         assert_eq!(user.email, deserialized.email);
         assert_eq!(user.password_hash, deserialized.password_hash);
+        assert_eq!(user.created_at, deserialized.created_at);
+        assert_eq!(user.updated_at, deserialized.updated_at);
     }
 }

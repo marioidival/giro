@@ -98,27 +98,29 @@ impl UserRepository {
     /// # }
     /// ```
     pub async fn find_by_username(&self, username: &str) -> Result<Option<User>> {
-        let result = sqlx::query_as::<_, (String, String, String, String, DateTime<Utc>)>(
-            r#"
-            SELECT id, username, email, password_hash, created_at
+        let result =
+            sqlx::query_as::<_, (String, String, String, String, DateTime<Utc>, DateTime<Utc>)>(
+                r#"
+            SELECT id, username, email, password_hash, created_at, updated_at
             FROM users
             WHERE username = ?
             "#,
-        )
-        .bind(username)
-        .fetch_optional(&self.pool)
-        .await
-        .context("Failed to query user by username")?;
+            )
+            .bind(username)
+            .fetch_optional(&self.pool)
+            .await
+            .context("Failed to query user by username")?;
 
-        Ok(
-            result.map(|(id, username, email, password_hash, created_at)| User {
+        Ok(result.map(
+            |(id, username, email, password_hash, created_at, updated_at)| User {
                 id,
                 username,
                 email,
                 password_hash,
                 created_at,
-            }),
-        )
+                updated_at,
+            },
+        ))
     }
 
     /// Find a user by ID
@@ -141,27 +143,29 @@ impl UserRepository {
     /// # }
     /// ```
     pub async fn find_by_id(&self, id: &str) -> Result<Option<User>> {
-        let result = sqlx::query_as::<_, (String, String, String, String, DateTime<Utc>)>(
-            r#"
-            SELECT id, username, email, password_hash, created_at
+        let result =
+            sqlx::query_as::<_, (String, String, String, String, DateTime<Utc>, DateTime<Utc>)>(
+                r#"
+            SELECT id, username, email, password_hash, created_at, updated_at
             FROM users
             WHERE id = ?
             "#,
-        )
-        .bind(id)
-        .fetch_optional(&self.pool)
-        .await
-        .context("Failed to query user by id")?;
+            )
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await
+            .context("Failed to query user by id")?;
 
-        Ok(
-            result.map(|(id, username, email, password_hash, created_at)| User {
+        Ok(result.map(
+            |(id, username, email, password_hash, created_at, updated_at)| User {
                 id,
                 username,
                 email,
                 password_hash,
                 created_at,
-            }),
-        )
+                updated_at,
+            },
+        ))
     }
 }
 
@@ -190,6 +194,8 @@ mod tests {
         assert_eq!(user.email, "test@example.com");
         assert_eq!(user.password_hash, "hashed_password");
         assert_eq!(user.id, created_user.id);
+        assert_eq!(user.created_at, created_user.created_at);
+        assert_eq!(user.updated_at, created_user.updated_at);
 
         Ok(())
     }
@@ -214,6 +220,8 @@ mod tests {
         assert_eq!(user.id, created_user.id);
         assert_eq!(user.username, "testuser");
         assert_eq!(user.email, "test@example.com");
+        assert_eq!(user.created_at, created_user.created_at);
+        assert_eq!(user.updated_at, created_user.updated_at);
 
         Ok(())
     }
