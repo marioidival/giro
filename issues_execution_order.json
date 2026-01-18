@@ -253,7 +253,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-agent/src/provider.rs` (part 4)",
-      "commit_message": "`feat: add LLM response parsers for tasks and commands`"
+      "commit_message": "`feat: add LLM response parsers for tasks and commands`",
+      "status": "done"
     },
     {
       "issue_number": 25,
