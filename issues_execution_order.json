@@ -15,7 +15,7 @@
       "count": 24
     }
   },
-  "issues": [
+  "tasksDone": [
     {
       "issue_number": 1,
       "task_id": "1.1",
@@ -503,7 +503,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/src/handlers/loops.rs` (part 2)",
-      "commit_message": "`feat: add loop control HTTP handlers`"
+      "commit_message": "`feat: add loop control HTTP handlers`",
+      "status": "done"
     },
     {
       "issue_number": 50,
@@ -586,15 +587,6 @@
       "status": "done"
     },
     {
-      "issue_number": 58,
-      "task_id": "3.15",
-      "title": "3.15: Add WebSocket for Real-time Updates",
-      "sprint": "Sprint 3: HTTP Server & Frontend",
-      "sprint_number": 3,
-      "files": "`ralph-server/src/websocket.rs`",
-      "commit_message": "`feat: add WebSocket for real-time progress updates`"
-    },
-    {
       "issue_number": 59,
       "task_id": "3.16",
       "title": "3.16: Create Base Template",
@@ -614,16 +606,27 @@
       "commit_message": "`feat: add auth templates (login, register)`",
       "status": "done"
     },
-     {
-       "issue_number": 61,
-       "task_id": "3.18",
-       "title": "3.18: Create Loop List Template",
-       "sprint": "Sprint 3: HTTP Server & Frontend",
-       "sprint_number": 3,
-       "files": "`templates/loops/index.html`",
-       "commit_message": "`feat: add loop list template with HTMX`",
-       "status": "done"
-     },
+    {
+      "issue_number": 61,
+      "task_id": "3.18",
+      "title": "3.18: Create Loop List Template",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`templates/loops/index.html`",
+      "commit_message": "`feat: add loop list template with HTMX`",
+      "status": "done"
+    }
+  ],
+  "issues": [
+    {
+      "issue_number": 58,
+      "task_id": "3.15",
+      "title": "3.15: Add WebSocket for Real-time Updates",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/websocket.rs`",
+      "commit_message": "`feat: add WebSocket for real-time progress updates`"
+    },
     {
       "issue_number": 62,
       "task_id": "3.19",
@@ -677,16 +680,6 @@
       "sprint_number": 3,
       "files": "`README.md`",
       "commit_message": "`docs: update README with comprehensive setup guide`"
-    },
-    {
-      "issue_number": 49,
-      "task_id": "3.6",
-      "title": "3.6: Implement Loop Control Handlers",
-      "sprint": "Sprint 3: HTTP Server & Frontend",
-      "sprint_number": 3,
-      "files": "`ralph-server/src/handlers/loops.rs` (part 2)",
-      "commit_message": "`feat: add loop control HTTP handlers`",
-      "status": "done"
     }
   ]
 }
