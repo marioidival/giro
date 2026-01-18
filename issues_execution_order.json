@@ -193,7 +193,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-repositories/src/lib.rs`",
-      "commit_message": "`refactor: export all repositories from ralph-repositories`"
+      "commit_message": "`refactor: export all repositories from ralph-repositories`",
+      "status": "done"
     },
     {
       "issue_number": 19,
