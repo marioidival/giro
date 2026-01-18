@@ -10,6 +10,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
 };
 use ralph_models::{CreateUser, LoginUser};
+use ralph_repositories::LoopRepository;
 use ralph_services::AuthService;
 use serde::{Deserialize, Serialize};
 
@@ -25,6 +26,8 @@ pub struct AppState {
     pub auth_service: AuthService,
     /// Session store for managing user sessions
     pub session_store: SessionStore,
+    /// Loop repository for loop database operations
+    pub loop_repository: LoopRepository,
 }
 
 impl AppState {
@@ -33,10 +36,16 @@ impl AppState {
     /// # Arguments
     /// * `auth_service` - The authentication service instance
     /// * `session_store` - The session store instance
-    pub fn new(auth_service: AuthService, session_store: SessionStore) -> Self {
+    /// * `loop_repository` - The loop repository instance
+    pub fn new(
+        auth_service: AuthService,
+        session_store: SessionStore,
+        loop_repository: LoopRepository,
+    ) -> Self {
         Self {
             auth_service,
             session_store,
+            loop_repository,
         }
     }
 }
