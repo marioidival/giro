@@ -483,7 +483,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/src/handlers/auth.rs`",
-      "commit_message": "`feat: add auth HTTP handlers with validation`"
+      "commit_message": "`feat: add auth HTTP handlers with validation`",
+      "status": "done"
     },
     {
       "issue_number": 48,
