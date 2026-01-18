@@ -313,7 +313,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-agent/src/tools.rs` (part 2)",
-      "commit_message": "`feat: add FileTool for container file operations`"
+      "commit_message": "`feat: add FileTool for container file operations`",
+      "status": "done"
     },
     {
       "issue_number": 31,
