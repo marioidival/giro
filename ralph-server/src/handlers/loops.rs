@@ -1078,5 +1078,428 @@ mod tests {
             assert!(html.contains("htmx.org"), "Should include HTMX CDN");
             assert!(html.contains("Loops"), "Should include page title");
         }
+
+        #[tokio::test]
+        async fn test_start_loop_starts_execution() {
+            let state = create_test_state().await;
+            let app = crate::router::create_router(state.clone());
+
+            let user_id = "test-user-id".to_string();
+            let session_id = state.session_store.create_session(user_id.clone()).await;
+
+            let create_loop = ralph_models::CreateLoop {
+                name: "Test Loop".to_string(),
+                description: None,
+                prd: "Test PRD".to_string(),
+                owner_id: user_id.clone(),
+                provider: "mock".to_string(),
+                model: "mock".to_string(),
+                docker_image: Some("ralph-loop-manager:latest".to_string()),
+                cpu_limit: Some(1),
+                memory_limit: Some(1024),
+                max_iterations: Some(100),
+                iteration_timeout: Some(300),
+                iteration_delay: Some(0),
+                git_repo_url: None,
+                git_branch_pattern: Some("ralph/{loop_id}/{timestamp}".to_string()),
+            };
+
+            let pool = SqlitePool::connect(":memory:").await.unwrap();
+            sqlx::query(
+                r#"
+                CREATE TABLE IF NOT EXISTS loops (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    prd TEXT NOT NULL,
+                    owner_id TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    docker_image TEXT NOT NULL,
+                    cpu_limit INTEGER NOT NULL,
+                    memory_limit INTEGER NOT NULL,
+                    max_iterations INTEGER NOT NULL,
+                    iteration_timeout INTEGER NOT NULL,
+                    iteration_delay INTEGER NOT NULL,
+                    git_repo_url TEXT,
+                    git_branch_pattern TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    current_iteration INTEGER NOT NULL DEFAULT 0,
+                    container_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                "#,
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let loop_repository = LoopRepository::new(pool.clone());
+            let created_loop = loop_repository.create(create_loop).await.unwrap();
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri(&format!("/api/loops/{}/start", created_loop.id))
+                        .method(Method::POST)
+                        .header("session", &session_id)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let json: LoopControlResponse = serde_json::from_slice(&body).unwrap();
+
+            assert!(json.success);
+            assert_eq!(json.status, "running");
+            assert!(json.message.contains("started"));
+        }
+
+        #[tokio::test]
+        async fn test_pause_loop_stops_execution() {
+            let state = create_test_state().await;
+            let app = crate::router::create_router(state.clone());
+
+            let user_id = "test-user-id".to_string();
+            let session_id = state.session_store.create_session(user_id.clone()).await;
+
+            let pool = SqlitePool::connect(":memory:").await.unwrap();
+            sqlx::query(
+                r#"
+                CREATE TABLE IF NOT EXISTS loops (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    prd TEXT NOT NULL,
+                    owner_id TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    docker_image TEXT NOT NULL,
+                    cpu_limit INTEGER NOT NULL,
+                    memory_limit INTEGER NOT NULL,
+                    max_iterations INTEGER NOT NULL,
+                    iteration_timeout INTEGER NOT NULL,
+                    iteration_delay INTEGER NOT NULL,
+                    git_repo_url TEXT,
+                    git_branch_pattern TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    current_iteration INTEGER NOT NULL DEFAULT 0,
+                    container_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                "#,
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let loop_repository = LoopRepository::new(pool.clone());
+            let create_loop = ralph_models::CreateLoop {
+                name: "Test Loop".to_string(),
+                description: None,
+                prd: "Test PRD".to_string(),
+                owner_id: user_id.clone(),
+                provider: "mock".to_string(),
+                model: "mock".to_string(),
+                docker_image: Some("ralph-loop-manager:latest".to_string()),
+                cpu_limit: Some(1),
+                memory_limit: Some(1024),
+                max_iterations: Some(100),
+                iteration_timeout: Some(300),
+                iteration_delay: Some(0),
+                git_repo_url: None,
+                git_branch_pattern: Some("ralph/{loop_id}/{timestamp}".to_string()),
+            };
+
+            let created_loop = loop_repository.create(create_loop).await.unwrap();
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri(&format!("/api/loops/{}/pause", created_loop.id))
+                        .method(Method::POST)
+                        .header("session", &session_id)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let json: LoopControlResponse = serde_json::from_slice(&body).unwrap();
+
+            assert!(json.success);
+            assert_eq!(json.status, "paused");
+            assert!(json.message.contains("paused"));
+        }
+
+        #[tokio::test]
+        async fn test_resume_loop_continues_execution() {
+            let state = create_test_state().await;
+            let app = crate::router::create_router(state.clone());
+
+            let user_id = "test-user-id".to_string();
+            let session_id = state.session_store.create_session(user_id.clone()).await;
+
+            let pool = SqlitePool::connect(":memory:").await.unwrap();
+            sqlx::query(
+                r#"
+                CREATE TABLE IF NOT EXISTS loops (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    prd TEXT NOT NULL,
+                    owner_id TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    docker_image TEXT NOT NULL,
+                    cpu_limit INTEGER NOT NULL,
+                    memory_limit INTEGER NOT NULL,
+                    max_iterations INTEGER NOT NULL,
+                    iteration_timeout INTEGER NOT NULL,
+                    iteration_delay INTEGER NOT NULL,
+                    git_repo_url TEXT,
+                    git_branch_pattern TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    current_iteration INTEGER NOT NULL DEFAULT 0,
+                    container_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                "#,
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let loop_repository = LoopRepository::new(pool.clone());
+            let create_loop = ralph_models::CreateLoop {
+                name: "Test Loop".to_string(),
+                description: None,
+                prd: "Test PRD".to_string(),
+                owner_id: user_id.clone(),
+                provider: "mock".to_string(),
+                model: "mock".to_string(),
+                docker_image: Some("ralph-loop-manager:latest".to_string()),
+                cpu_limit: Some(1),
+                memory_limit: Some(1024),
+                max_iterations: Some(100),
+                iteration_timeout: Some(300),
+                iteration_delay: Some(0),
+                git_repo_url: None,
+                git_branch_pattern: Some("ralph/{loop_id}/{timestamp}".to_string()),
+            };
+
+            let created_loop = loop_repository.create(create_loop).await.unwrap();
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri(&format!("/api/loops/{}/resume", created_loop.id))
+                        .method(Method::POST)
+                        .header("session", &session_id)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let json: LoopControlResponse = serde_json::from_slice(&body).unwrap();
+
+            assert!(json.success);
+            assert_eq!(json.status, "running");
+            assert!(json.message.contains("resumed"));
+        }
+
+        #[tokio::test]
+        async fn test_stop_loop_terminates_execution() {
+            let state = create_test_state().await;
+            let app = crate::router::create_router(state.clone());
+
+            let user_id = "test-user-id".to_string();
+            let session_id = state.session_store.create_session(user_id.clone()).await;
+
+            let pool = SqlitePool::connect(":memory:").await.unwrap();
+            sqlx::query(
+                r#"
+                CREATE TABLE IF NOT EXISTS loops (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    prd TEXT NOT NULL,
+                    owner_id TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    docker_image TEXT NOT NULL,
+                    cpu_limit INTEGER NOT NULL,
+                    memory_limit INTEGER NOT NULL,
+                    max_iterations INTEGER NOT NULL,
+                    iteration_timeout INTEGER NOT NULL,
+                    iteration_delay INTEGER NOT NULL,
+                    git_repo_url TEXT,
+                    git_branch_pattern TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    current_iteration INTEGER NOT NULL DEFAULT 0,
+                    container_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                "#,
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let loop_repository = LoopRepository::new(pool.clone());
+            let create_loop = ralph_models::CreateLoop {
+                name: "Test Loop".to_string(),
+                description: None,
+                prd: "Test PRD".to_string(),
+                owner_id: user_id.clone(),
+                provider: "mock".to_string(),
+                model: "mock".to_string(),
+                docker_image: Some("ralph-loop-manager:latest".to_string()),
+                cpu_limit: Some(1),
+                memory_limit: Some(1024),
+                max_iterations: Some(100),
+                iteration_timeout: Some(300),
+                iteration_delay: Some(0),
+                git_repo_url: None,
+                git_branch_pattern: Some("ralph/{loop_id}/{timestamp}".to_string()),
+            };
+
+            let created_loop = loop_repository.create(create_loop).await.unwrap();
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri(&format!("/api/loops/{}/stop", created_loop.id))
+                        .method(Method::POST)
+                        .header("session", &session_id)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let json: LoopControlResponse = serde_json::from_slice(&body).unwrap();
+
+            assert!(json.success);
+            assert_eq!(json.status, "completed");
+            assert!(json.message.contains("stopped"));
+        }
+
+        #[tokio::test]
+        async fn test_loop_control_unauthorized_for_wrong_user() {
+            let state = create_test_state().await;
+            let app = crate::router::create_router(state.clone());
+
+            let owner_id = "owner-user-id".to_string();
+            let attacker_id = "attacker-user-id".to_string();
+            let attacker_session = state
+                .session_store
+                .create_session(attacker_id.clone())
+                .await;
+
+            let pool = SqlitePool::connect(":memory:").await.unwrap();
+            sqlx::query(
+                r#"
+                CREATE TABLE IF NOT EXISTS loops (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    prd TEXT NOT NULL,
+                    owner_id TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    docker_image TEXT NOT NULL,
+                    cpu_limit INTEGER NOT NULL,
+                    memory_limit INTEGER NOT NULL,
+                    max_iterations INTEGER NOT NULL,
+                    iteration_timeout INTEGER NOT NULL,
+                    iteration_delay INTEGER NOT NULL,
+                    git_repo_url TEXT,
+                    git_branch_pattern TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    current_iteration INTEGER NOT NULL DEFAULT 0,
+                    container_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                "#,
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let loop_repository = LoopRepository::new(pool.clone());
+            let create_loop = ralph_models::CreateLoop {
+                name: "Test Loop".to_string(),
+                description: None,
+                prd: "Test PRD".to_string(),
+                owner_id: owner_id.clone(),
+                provider: "mock".to_string(),
+                model: "mock".to_string(),
+                docker_image: Some("ralph-loop-manager:latest".to_string()),
+                cpu_limit: Some(1),
+                memory_limit: Some(1024),
+                max_iterations: Some(100),
+                iteration_timeout: Some(300),
+                iteration_delay: Some(0),
+                git_repo_url: None,
+                git_branch_pattern: Some("ralph/{loop_id}/{timestamp}".to_string()),
+            };
+
+            let created_loop = loop_repository.create(create_loop).await.unwrap();
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri(&format!("/api/loops/{}/start", created_loop.id))
+                        .method(Method::POST)
+                        .header("session", &attacker_session)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let json: LoopControlResponse = serde_json::from_slice(&body).unwrap();
+
+            assert!(!json.success);
+            assert!(json.message.contains("permission"));
+        }
     }
 }
