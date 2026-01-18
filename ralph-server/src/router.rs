@@ -16,6 +16,7 @@ use crate::middleware::{
     csrf::csrf_middleware,
     rate_limit::{create_rate_limiter_from_env, rate_limit_middleware},
 };
+use crate::websocket::websocket_handler;
 use axum::http::{HeaderName, HeaderValue, Method};
 use axum::{
     Extension, Router,
@@ -94,6 +95,7 @@ pub fn create_router(state: AppState) -> Router {
 /// - `POST /api/loops/:id/pause` - Pause a running loop
 /// - `POST /api/loops/:id/resume` - Resume a paused loop
 /// - `POST /api/loops/:id/stop` - Stop a loop
+/// - `GET /api/loops/:id/stream` - WebSocket for real-time loop updates
 ///
 /// ## Tasks
 /// - `POST /api/loops/:id/tasks` - Create a task for a loop
@@ -111,6 +113,7 @@ fn protected_routes() -> Router<AppState> {
         .route("/api/loops/{id}/pause", post(pause_loop))
         .route("/api/loops/{id}/resume", post(resume_loop))
         .route("/api/loops/{id}/stop", post(stop_loop))
+        .route("/api/loops/{id}/stream", get(websocket_handler))
         .route("/api/loops/{id}/tasks", get(list_tasks).post(create_task))
         .route("/api/tasks/{id}", get(get_task).delete(delete_task))
         .route_layer(axum::middleware::from_fn(csrf_middleware))
