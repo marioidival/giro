@@ -3,7 +3,7 @@
 //! This module configures Axum router with all route handlers and middleware.
 
 use crate::handlers::{
-    api_keys::{create_api_key, deactivate_api_key, list_api_keys},
+    api_keys::{api_keys_page, create_api_key, deactivate_api_key, list_api_keys},
     auth::{AppState, login, logout, register},
     git::{
         create_git_credentials, delete_git_credentials, git_credentials_page, list_git_credentials,
@@ -115,6 +115,7 @@ pub fn create_router(state: AppState) -> Router {
 /// - `DELETE /api/git/credentials/:id` - Delete a Git credential
 ///
 /// ## API Keys
+/// - `GET /keys` - Render API keys management page (HTML)
 /// - `GET /api/keys` - List all API keys for the authenticated user
 /// - `POST /api/keys` - Create a new API key
 /// - `DELETE /api/keys/:id` - Deactivate an API key
@@ -134,6 +135,7 @@ fn protected_routes() -> Router<AppState> {
         .route("/api/loops/{id}/tasks", get(list_tasks).post(create_task))
         .route("/api/tasks/{id}", get(get_task).delete(delete_task))
         .route("/git/credentials", get(git_credentials_page))
+        .route("/keys", get(api_keys_page))
         .route(
             "/api/git/credentials",
             get(list_git_credentials).post(create_git_credentials),
@@ -377,8 +379,13 @@ mod integration_tests {
 
         let docker = Arc::new(DockerManager::new());
         let agent_config = ralph_agent::agent::AgentConfig::default();
-        let loop_executor =
-            LoopExecutor::new(Arc::new(pool), docker, agent_config, None, Arc::new(api_key_repository.clone()));
+        let loop_executor = LoopExecutor::new(
+            Arc::new(pool),
+            docker,
+            agent_config,
+            None,
+            Arc::new(api_key_repository.clone()),
+        );
 
         let broadcast_manager = crate::websocket::BroadcastManager::new();
 

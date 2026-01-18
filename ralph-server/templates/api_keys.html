@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}API Keys - Ralph Loop Manager{% endblock %}
+
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <div class="md:flex md:items-center md:justify-between">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                API Keys
+            </h2>
+            <p class="mt-1 text-sm text-gray-500">
+                Manage your API keys for LLM providers (Anthropic Claude, OpenAI, Sourcegraph Amp).
+            </p>
+        </div>
+    </div>
+
+    <!-- Add API Key Form -->
+    <div class="mt-8 bg-white shadow sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+            <h3 class="text-lg font-medium leading-6 text-gray-900">Add New API Key</h3>
+            <div class="mt-4">
+                <form
+                    hx-post="/api/keys"
+                    hx-target="#keys-list"
+                    hx-swap="innerHTML"
+                    class="space-y-4"
+                >
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+                    <div class="grid grid-cols-1 gap-y-4 gap-x-4 sm:grid-cols-2">
+                        <!-- Provider -->
+                        <div class="sm:col-span-1">
+                            <label for="provider" class="block text-sm font-medium text-gray-700">
+                                Provider <span class="text-red-500">*</span>
+                            </label>
+                            <select
+                                id="provider"
+                                name="provider"
+                                required
+                                class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                            >
+                                <option value="">Select a provider</option>
+                                <option value="anthropic">Anthropic Claude</option>
+                                <option value="openai">OpenAI</option>
+                                <option value="amp">Sourcegraph Amp</option>
+                            </select>
+                        </div>
+
+                        <!-- API Key -->
+                        <div class="sm:col-span-1">
+                            <label for="key" class="block text-sm font-medium text-gray-700">
+                                API Key <span class="text-red-500">*</span>
+                            </label>
+                            <input
+                                type="password"
+                                name="key"
+                                id="key"
+                                required
+                                placeholder="sk-ant-... or sk-..."
+                                class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button
+                            type="submit"
+                            class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                        >
+                            <svg class="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                            </svg>
+                            Add API Key
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Keys List -->
+    <div class="mt-8 flex flex-col">
+        <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+                <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                    <div id="keys-list">
+                        {% if keys.is_empty() %}
+                        <div class="text-center py-12 bg-white">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                            </svg>
+                            <h3 class="mt-2 text-sm font-medium text-gray-900">No API keys</h3>
+                            <p class="mt-1 text-sm text-gray-500">
+                                Get started by adding an API key for your preferred LLM provider.
+                            </p>
+                        </div>
+                        {% else %}
+                        <table class="min-w-full divide-y divide-gray-300">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col" class="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">Provider</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Status</th>
+                                    <th scope="col" class="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">Added</th>
+                                    <th scope="col" class="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                                        <span class="sr-only">Actions</span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200 bg-white">
+                                {% for key in keys %}
+                                <tr>
+                                    <td class="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                            {% if key.provider == "anthropic" %} bg-orange-100 text-orange-800
+                                            {% elif key.provider == "openai" %} bg-green-100 text-green-800
+                                            {% elif key.provider == "amp" %} bg-purple-100 text-purple-800
+                                            {% else %} bg-gray-100 text-gray-800 {% endif %}">
+                                            {% if key.provider == "anthropic" %} Anthropic Claude
+                                            {% elif key.provider == "openai" %} OpenAI
+                                            {% elif key.provider == "amp" %} Sourcegraph Amp
+                                            {% else %} {{ key.provider | title }} {% endif %}
+                                        </span>
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                        {% if key.is_active %}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                Active
+                                            </span>
+                                        {% else %}
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                Inactive
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                                        {{ key.created_at[..10] }}
+                                    </td>
+                                    <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                                        <button
+                                            hx-delete="/api/keys/{{ key.id }}"
+                                            hx-confirm="Are you sure you want to deactivate this API key?"
+                                            hx-target="#keys-list"
+                                            hx-swap="innerHTML"
+                                            class="text-red-600 hover:text-red-900"
+                                        >
+                                            Deactivate
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

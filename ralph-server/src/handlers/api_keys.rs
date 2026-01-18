@@ -4,15 +4,19 @@
 //! All handlers require authentication via auth middleware and check ownership
 //! to ensure users can only access their own API keys.
 
+use askama::Template;
 use axum::{
     Extension, Json,
     extract::{Path, State},
     http::StatusCode,
+    response::Html,
 };
 use ralph_models::{ApiKeyProvider, CreateApiKey};
 use serde::{Deserialize, Serialize};
 
 use crate::handlers::auth::AppState;
+use crate::middleware::csrf::CsrfToken;
+use crate::templates::ApiKeysListTemplate;
 
 /// Response structure for listing API keys.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -262,6 +266,50 @@ pub async fn deactivate_api_key(
                 )
             }
         }
+    }
+}
+
+/// Handles rendering the API keys management page (HTML).
+///
+/// This endpoint:
+/// 1. Extracts user_id from auth middleware
+/// 2. Generates CSRF token
+/// 3. Retrieves all API keys for the user
+/// 4. Renders the API keys management template
+///
+/// # Arguments
+/// * `state` - The application state containing API key repository
+/// * `user_id` - The authenticated user's ID (from auth middleware)
+///
+/// # Returns
+/// * `200 OK` with HTML template on success
+/// * `500 Internal Server Error` for server errors
+pub async fn api_keys_page(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<String>,
+) -> (StatusCode, Html<String>) {
+    let logged_in = !user_id.is_empty();
+
+    // Get API keys for the user
+    let keys = match state.api_key_repository.list_by_user(&user_id).await {
+        Ok(k) => k.into_iter().map(ApiKeySummary::from).collect(),
+        Err(_e) => Vec::new(),
+    };
+
+    let csrf_token = CsrfToken::generate().to_string();
+
+    let template = ApiKeysListTemplate {
+        logged_in,
+        csrf_token,
+        keys,
+    };
+
+    match template.render() {
+        Ok(html) => (StatusCode::OK, Html(html)),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Html(format!("Failed to render template: {}", e)),
+        ),
     }
 }
 

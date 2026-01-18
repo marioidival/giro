@@ -5,6 +5,7 @@ pub mod health;
 pub mod loops;
 pub mod tasks;
 
+pub use api_keys::api_keys_page;
 pub use api_keys::{ApiKeySummary, ListApiKeysResponse, create_api_key, list_api_keys};
 pub use api_keys::{
     CreateApiKeyRequest, CreateApiKeyResponse, DeactivateApiKeyResponse, deactivate_api_key,

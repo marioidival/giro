@@ -1,3 +1,4 @@
+use crate::handlers::api_keys::ApiKeySummary;
 use crate::handlers::git::GitCredentialSummary;
 use crate::handlers::loops::LoopDetail;
 use crate::handlers::loops::LoopSummary;
@@ -83,6 +84,14 @@ pub struct GitCredentialsListTemplate {
     pub logged_in: bool,
     pub csrf_token: String,
     pub credentials: Vec<GitCredentialSummary>,
+}
+
+#[derive(Template)]
+#[template(path = "api_keys.html")]
+pub struct ApiKeysListTemplate {
+    pub logged_in: bool,
+    pub csrf_token: String,
+    pub keys: Vec<ApiKeySummary>,
 }
 
 #[cfg(test)]
