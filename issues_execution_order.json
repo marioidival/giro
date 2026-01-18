@@ -362,7 +362,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-services/src/auth.rs` (part 2)",
-      "commit_message": "`feat: add AuthService with user validation`"
+      "commit_message": "`feat: add AuthService with user validation`",
+      "status": "done"
     },
     {
       "issue_number": 36,
