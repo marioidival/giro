@@ -40,7 +40,7 @@
         </div>
         {% endif %}
 
-        <form class="mt-8 space-y-6" id="registerForm" hx-post="/api/auth/register" hx-target="#response" hx-swap="none">
+        <form class="mt-8 space-y-6" id="registerForm" hx-post="/api/auth/register" hx-target="#response" hx-swap="none" hx-headers='{"Content-Type": "application/json"}'>
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
             <div class="rounded-md shadow-sm space-y-4">
                 <div>
@@ -92,6 +92,13 @@
 </div>
 
 <script>
+// Convert form data to JSON before HTMX sends the request
+document.body.addEventListener('htmx:configRequest', function(evt) {
+    if (evt.detail.target.id === 'registerForm') {
+        evt.detail.parameters = JSON.stringify(Object.fromEntries(new FormData(evt.detail.target)));
+    }
+});
+
 document.body.addEventListener('htmx:afterRequest', function(evt) {
     if (evt.detail.xhr.status === 200 || evt.detail.xhr.status === 201) {
         try {
