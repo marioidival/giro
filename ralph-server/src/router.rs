@@ -4,7 +4,7 @@
 
 use crate::handlers::{
     api_keys::{api_keys_page, create_api_key, deactivate_api_key, list_api_keys},
-    auth::{AppState, login, logout, register},
+    auth::{AppState, login, login_page, logout, register, register_page},
     git::{
         create_git_credentials, delete_git_credentials, git_credentials_page, list_git_credentials,
     },
@@ -65,6 +65,8 @@ pub fn create_router(state: AppState) -> Router {
 
     Router::new()
         .route("/health", get(health_check))
+        .route("/auth/login", get(login_page))
+        .route("/auth/register", get(register_page))
         .route("/api/auth/register", post(register))
         .route("/api/auth/login", post(login))
         .route("/api/auth/logout", post(logout))

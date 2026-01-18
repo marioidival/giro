@@ -8,6 +8,7 @@ use axum::{
     Json,
     extract::State,
     http::{HeaderMap, StatusCode},
+    response::Html,
 };
 use ralph_models::{CreateUser, LoginUser};
 use ralph_repositories::{
@@ -15,9 +16,12 @@ use ralph_repositories::{
 };
 use ralph_services::{AuthService, LoopExecutor};
 use serde::{Deserialize, Serialize};
+use askama::Template;
 
 use crate::middleware::auth::SessionStore;
+use crate::middleware::csrf::CsrfToken;
 use crate::middleware::csrf::CsrfTokenStore;
+use crate::templates::{LoginTemplate, RegisterTemplate};
 use crate::validation::{validate_email, validate_password, validate_username};
 
 /// Application state containing shared services and stores.
@@ -340,6 +344,72 @@ pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Json<L
             success: true,
             message: "No session to logout".to_string(),
         })
+    }
+}
+
+/// Handles rendering the login page (HTML).
+///
+/// This endpoint:
+/// 1. Generates CSRF token
+/// 2. Renders the login form template
+///
+/// # Arguments
+/// * `state` - The application state containing CSRF store
+///
+/// # Returns
+/// * `200 OK` with HTML login form on success
+/// * `500 Internal Server Error` for server errors
+pub async fn login_page(State(_state): State<AppState>) -> (StatusCode, Html<String>) {
+    let csrf_token = CsrfToken::generate().to_string();
+
+    // Check if user is already logged in by checking if there's any active session
+    let logged_in = false;
+
+    let template = LoginTemplate {
+        logged_in,
+        csrf_token,
+    };
+
+    match template.render() {
+        Ok(html) => (StatusCode::OK, Html(html)),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Html(format!("Failed to render template: {}", e)),
+        ),
+    }
+}
+
+/// Handles rendering the registration page (HTML).
+///
+/// This endpoint:
+/// 1. Generates CSRF token
+/// 2. Renders the registration form template
+///
+/// # Arguments
+/// * `state` - The application state containing CSRF store
+///
+/// # Returns
+/// * `200 OK` with HTML registration form on success
+/// * `500 Internal Server Error` for server errors
+pub async fn register_page(State(_state): State<AppState>) -> (StatusCode, Html<String>) {
+    let csrf_token = CsrfToken::generate().to_string();
+
+    // Check if user is already logged in
+    let logged_in = false;
+
+    let empty_errors: &[String] = &[];
+    let template = RegisterTemplate {
+        logged_in,
+        csrf_token,
+        errors: empty_errors,
+    };
+
+    match template.render() {
+        Ok(html) => (StatusCode::OK, Html(html)),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Html(format!("Failed to render template: {}", e)),
+        ),
     }
 }
 

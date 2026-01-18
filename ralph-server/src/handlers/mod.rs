@@ -12,7 +12,7 @@ pub use api_keys::{ApiKeySummary, ListApiKeysResponse, create_api_key, list_api_
 pub use api_keys::{
     CreateApiKeyRequest, CreateApiKeyResponse, DeactivateApiKeyResponse, deactivate_api_key,
 };
-pub use auth::{AppState, login, logout, register};
+pub use auth::{AppState, login, login_page, logout, register, register_page};
 pub use git::{
     CreateGitCredentialRequest, DeleteGitCredentialResponse, GitCredentialSummary,
     ListGitCredentialsResponse, create_git_credentials, delete_git_credentials,
