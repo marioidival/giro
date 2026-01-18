@@ -443,7 +443,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-services/src/lib.rs`",
-      "commit_message": "`refactor: export all services from ralph-services`"
+      "commit_message": "`refactor: export all services from ralph-services`",
+      "status": "done"
     },
     {
       "issue_number": 44,
