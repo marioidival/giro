@@ -6,6 +6,8 @@ use async_trait::async_trait;
 pub struct MockLLMProvider {
     /// Predefined response to return (for testing)
     response: Option<LLMResponse>,
+    /// Artificial delay in milliseconds (for timeout testing)
+    delay_ms: Option<u64>,
 }
 
 impl MockLLMProvider {
@@ -13,7 +15,10 @@ impl MockLLMProvider {
     ///
     /// Default behavior: returns a simple response indicating this is a mock
     pub fn new() -> Self {
-        Self { response: None }
+        Self {
+            response: None,
+            delay_ms: None,
+        }
     }
 
     /// Create a MockLLMProvider with a predefined response
@@ -22,12 +27,34 @@ impl MockLLMProvider {
     pub fn with_response(response: LLMResponse) -> Self {
         Self {
             response: Some(response),
+            delay_ms: None,
         }
+    }
+
+    /// Set an artificial delay in milliseconds before returning response
+    ///
+    /// Useful for testing timeout scenarios
+    pub fn with_delay(&self, delay_ms: u64) -> Self {
+        Self {
+            response: self.response.clone(),
+            delay_ms: Some(delay_ms),
+        }
+    }
+
+    /// Clear the artificial delay
+    pub fn clear_delay(&mut self) {
+        self.delay_ms = None;
     }
 
     /// Update the predefined response
     pub fn set_response(&mut self, response: LLMResponse) {
         self.response = Some(response);
+    }
+
+    /// Update the predefined response with delay
+    pub fn set_response_with_delay(&mut self, response: LLMResponse, delay_ms: u64) {
+        self.response = Some(response);
+        self.delay_ms = Some(delay_ms);
     }
 
     /// Clear the predefined response (revert to default behavior)
@@ -45,6 +72,10 @@ impl Default for MockLLMProvider {
 #[async_trait]
 impl LLMProviderTrait for MockLLMProvider {
     async fn complete(&self, _request: &LLMRequest) -> anyhow::Result<LLMResponse> {
+        if let Some(delay_ms) = self.delay_ms {
+            tokio::time::sleep(tokio::time::Duration::from_millis(delay_ms)).await;
+        }
+
         if let Some(ref response) = self.response {
             Ok(response.clone())
         } else {

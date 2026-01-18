@@ -1,6 +1,15 @@
 use crate::provider::{LLMProviderTrait, LLMRequest, SuggestedTask};
 use serde::{Deserialize, Serialize};
 
+/// Error types for agent operations
+#[derive(thiserror::Error, Debug)]
+pub enum AgentError {
+    #[error("LLM request timed out after {0} seconds")]
+    Timeout(u64),
+    #[error("LLM provider error: {0}")]
+    ProviderError(#[from] anyhow::Error),
+}
+
 /// Maximum number of context entries to keep in memory
 pub const MAX_CONTEXT_ENTRIES: usize = 100;
 
@@ -79,20 +88,26 @@ impl CodeAgent {
         prd: String,
         task: String,
         context: Vec<String>,
-    ) -> anyhow::Result<AgentResult> {
-        let _request = LLMRequest {
+    ) -> Result<AgentResult, AgentError> {
+        let request = LLMRequest {
             prd,
             task,
             context,
             max_tokens: self.config.max_tokens_per_request,
         };
 
+        let timeout_duration = tokio::time::Duration::from_secs(self.config.timeout_seconds);
+
+        let llm_response = tokio::time::timeout(timeout_duration, self.provider.complete(&request))
+            .await
+            .map_err(|_| AgentError::Timeout(self.config.timeout_seconds))??;
+
         Ok(AgentResult {
-            content: String::new(),
-            tokens_used: 0,
-            suggested_tasks: vec![],
+            content: llm_response.content,
+            tokens_used: llm_response.tokens_used,
+            suggested_tasks: llm_response.suggested_tasks,
             new_context: vec![],
-            commands_executed: vec![],
+            commands_executed: llm_response.commands,
         })
     }
 }
@@ -181,8 +196,11 @@ mod tests {
         assert!(result.is_ok());
         let agent_result = result.unwrap();
 
-        assert!(agent_result.content.is_empty());
-        assert_eq!(agent_result.tokens_used, 0);
+        assert_eq!(
+            agent_result.content,
+            "Mock LLM response - for testing purposes"
+        );
+        assert_eq!(agent_result.tokens_used, 100);
         assert!(agent_result.suggested_tasks.is_empty());
         assert!(agent_result.new_context.is_empty());
         assert!(agent_result.commands_executed.is_empty());
@@ -262,6 +280,11 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
+        let agent_result = result.unwrap();
+        assert_eq!(
+            agent_result.content,
+            "Mock LLM response - for testing purposes"
+        );
     }
 
     #[tokio::test]
@@ -284,11 +307,123 @@ mod tests {
             .await;
 
         assert!(result.is_ok());
+        let agent_result = result.unwrap();
+        assert_eq!(
+            agent_result.content,
+            "Mock LLM response - for testing purposes"
+        );
     }
 
     #[test]
     fn test_max_context_entries_is_usize() {
         let _max: usize = MAX_CONTEXT_ENTRIES;
         assert_eq!(_max, 100);
+    }
+
+    #[tokio::test]
+    async fn test_timeout_is_enforced() {
+        let provider = Box::new(
+            MockLLMProvider::new().with_delay(2000), // 2 second delay
+        );
+        let config = AgentConfig {
+            max_iterations: 10,
+            max_tokens_per_request: Some(4000),
+            timeout_seconds: 1, // 1 second timeout
+        };
+
+        let agent = CodeAgent::new(provider, config);
+
+        let result = agent
+            .execute_task(
+                "Build a web server".to_string(),
+                "Create HTTP handler".to_string(),
+                vec![],
+            )
+            .await;
+
+        assert!(result.is_err());
+        assert!(matches!(result.unwrap_err(), AgentError::Timeout(1)));
+    }
+
+    #[tokio::test]
+    async fn test_normal_completion_does_not_timeout() {
+        let provider = Box::new(
+            MockLLMProvider::new().with_delay(100), // 100ms delay
+        );
+        let config = AgentConfig {
+            max_iterations: 10,
+            max_tokens_per_request: Some(4000),
+            timeout_seconds: 1, // 1 second timeout
+        };
+
+        let agent = CodeAgent::new(provider, config);
+
+        let result = agent
+            .execute_task(
+                "Build a web server".to_string(),
+                "Create HTTP handler".to_string(),
+                vec![],
+            )
+            .await;
+
+        assert!(result.is_ok());
+        let agent_result = result.unwrap();
+        assert_eq!(
+            agent_result.content,
+            "Mock LLM response - for testing purposes"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_timeout_error_message() {
+        let provider = Box::new(MockLLMProvider::new().with_delay(6000)); // 6 second delay
+        let config = AgentConfig {
+            max_iterations: 10,
+            max_tokens_per_request: Some(4000),
+            timeout_seconds: 5, // 5 second timeout
+        };
+
+        let agent = CodeAgent::new(provider, config);
+
+        let result = agent
+            .execute_task(
+                "Build a web server".to_string(),
+                "Create HTTP handler".to_string(),
+                vec![],
+            )
+            .await;
+
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        let error_msg = format!("{}", error);
+        assert!(error_msg.contains("timed out"));
+        assert!(error_msg.contains("5"));
+    }
+
+    #[tokio::test]
+    async fn test_custom_timeout_from_config() {
+        let provider = Box::new(MockLLMProvider::new().with_delay(1500));
+        let config = AgentConfig {
+            max_iterations: 10,
+            max_tokens_per_request: Some(4000),
+            timeout_seconds: 2, // 2 second timeout
+        };
+
+        let agent = CodeAgent::new(provider, config);
+
+        let result = agent
+            .execute_task(
+                "Build a web server".to_string(),
+                "Create HTTP handler".to_string(),
+                vec![],
+            )
+            .await;
+
+        assert!(result.is_ok());
+        let agent_result = result.unwrap();
+        assert_eq!(
+            agent_result.content,
+            "Mock LLM response - for testing purposes"
+        );
     }
 }
