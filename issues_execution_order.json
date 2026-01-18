@@ -676,26 +676,28 @@
        "commit_message": "`feat: add environment configuration template`",
        "status": "done"
      },
-     {
-       "issue_number": 67,
-       "task_id": "3.24",
-       "title": "3.24: Update README",
-       "sprint": "Sprint 3: HTTP Server & Frontend",
-       "sprint_number": 3,
-       "files": "`README.md`",
-       "commit_message": "`docs: update README with comprehensive setup guide`",
-       "status": "done"
-     }
-   ],
-   "issues": [
+      {
+        "issue_number": 67,
+        "task_id": "3.24",
+        "title": "3.24: Update README",
+        "sprint": "Sprint 3: HTTP Server & Frontend",
+        "sprint_number": 3,
+        "files": "`README.md`",
+        "commit_message": "`docs: update README with comprehensive setup guide`",
+        "status": "done"
+      },
       {
         "issue_number": 62,
         "task_id": "3.19",
         "title": "3.19: Create Loop Form Template",
         "sprint": "Sprint 3: HTTP Server & Frontend",
         "sprint_number": 3,
-        "files": "`templates/loops/new.html`",
-        "commit_message": "`feat: add loop creation form template`"
+        "files": "`ralph-server/src/templates/mod.rs`, `ralph-server/src/handlers/loops.rs`, `ralph-server/templates/loops/new.html`",
+        "commit_message": "`feat: add loop creation form template`",
+        "status": "done"
       }
-   ]
+    ]
+}
+    ],
+    "issues": []
 }

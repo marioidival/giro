@@ -359,9 +359,11 @@ pub async fn new_loop_form(
     let logged_in = !user_id.is_empty();
     let csrf_token = CsrfToken::generate().to_string();
 
+    let empty_errors: &[String] = &[];
     let template = LoopFormTemplate {
         logged_in,
         csrf_token,
+        errors: empty_errors,
     };
 
     match template.render() {

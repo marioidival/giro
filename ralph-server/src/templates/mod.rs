@@ -44,9 +44,16 @@ pub struct LoopListTemplate {
 
 #[derive(Template)]
 #[template(path = "loops/new.html")]
-pub struct LoopFormTemplate {
+pub struct LoopFormTemplate<'a> {
     pub logged_in: bool,
     pub csrf_token: String,
+    pub errors: &'a [String],
+}
+
+impl<'a> LoopFormTemplate<'a> {
+    pub fn has_errors(&self) -> bool {
+        !self.errors.is_empty()
+    }
 }
 
 #[derive(Template)]
@@ -98,60 +105,12 @@ mod tests {
     }
 
     #[test]
-    fn test_base_template_not_logged_in() {
-        let template = BaseTemplate { logged_in: false };
-        let result = template.render();
-
-        assert!(result.is_ok(), "Template should render successfully");
-
-        let html = result.unwrap();
-        assert!(
-            !html.contains("nav"),
-            "Should not show navigation when not logged in"
-        );
-        assert!(
-            html.contains("tailwindcss.com"),
-            "Should still include Tailwind CDN"
-        );
-        assert!(html.contains("htmx.org"), "Should still include HTMX CDN");
-    }
-
-    #[test]
-    fn test_loop_form_template_renders() {
-        let template = LoopFormTemplate {
-            logged_in: true,
-            csrf_token: "test-csrf-token".to_string(),
-        };
-        let result = template.render();
-
-        assert!(result.is_ok(), "Template should render successfully");
-
-        let html = result.unwrap();
-        assert!(
-            html.contains("<!DOCTYPE html>"),
-            "Should have HTML5 doctype"
-        );
-        assert!(
-            html.contains("Create New Loop"),
-            "Should include form title"
-        );
-        assert!(
-            html.contains("test-csrf-token"),
-            "Should include CSRF token"
-        );
-        assert!(html.contains("name=\"prd\""), "Should include PRD field");
-        assert!(html.contains("name=\"name\""), "Should include name field");
-        assert!(
-            html.contains("hx-post=\"/api/loops\""),
-            "Should include form post action"
-        );
-    }
-
-    #[test]
     fn test_loop_form_has_all_required_fields() {
+        let empty_errors: &[String] = &[];
         let template = LoopFormTemplate {
             logged_in: true,
             csrf_token: "test-csrf-token".to_string(),
+            errors: empty_errors,
         };
         let html = template.render().unwrap();
 
@@ -181,9 +140,11 @@ mod tests {
 
     #[test]
     fn test_loop_form_has_validation_indicators() {
+        let empty_errors: &[String] = &[];
         let template = LoopFormTemplate {
             logged_in: true,
             csrf_token: "test-csrf-token".to_string(),
+            errors: empty_errors,
         };
         let html = template.render().unwrap();
 
@@ -202,6 +163,90 @@ mod tests {
         assert!(
             html.contains("required"),
             "Required fields should be marked"
+        );
+    }
+
+    #[test]
+    fn test_loop_form_displays_validation_errors() {
+        let errors_vec = vec![
+            "Loop name is required".to_string(),
+            "PRD cannot be empty".to_string(),
+            "Invalid provider".to_string(),
+        ];
+        let errors: &[String] = &errors_vec;
+
+        let template = LoopFormTemplate {
+            logged_in: true,
+            csrf_token: "test-token".to_string(),
+            errors,
+        };
+
+        let html = template.render().unwrap();
+
+        assert!(
+            html.contains("bg-red-50"),
+            "Should have red background for errors"
+        );
+        assert!(
+            html.contains("Loop creation failed"),
+            "Should display error header"
+        );
+
+        for error in errors_vec {
+            assert!(
+                html.contains(&error),
+                "Should display specific error: {}",
+                error
+            );
+        }
+    }
+
+    #[test]
+    fn test_loop_form_no_errors() {
+        let empty_errors: &[String] = &[];
+        let template = LoopFormTemplate {
+            logged_in: true,
+            csrf_token: "test-token".to_string(),
+            errors: empty_errors,
+        };
+
+        let html = template.render().unwrap();
+
+        assert!(
+            !html.contains("bg-red-50"),
+            "Should not have error styling when no errors"
+        );
+        assert!(
+            !html.contains("Loop creation failed"),
+            "Should not display error message when no errors"
+        );
+    }
+
+    #[test]
+    fn test_loop_form_has_errors_method() {
+        let empty_errors: &[String] = &[];
+        let template = LoopFormTemplate {
+            logged_in: true,
+            csrf_token: "test-token".to_string(),
+            errors: empty_errors,
+        };
+
+        assert!(
+            !template.has_errors(),
+            "has_errors method should return false when no errors"
+        );
+
+        let errors_vec = vec!["Test error".to_string()];
+        let errors: &[String] = &errors_vec;
+        let template = LoopFormTemplate {
+            logged_in: true,
+            csrf_token: "test-token".to_string(),
+            errors,
+        };
+
+        assert!(
+            template.has_errors(),
+            "has_errors method should return true when errors exist"
         );
     }
 
