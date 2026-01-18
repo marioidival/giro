@@ -614,15 +614,16 @@
       "commit_message": "`feat: add auth templates (login, register)`",
       "status": "done"
     },
-    {
-      "issue_number": 61,
-      "task_id": "3.18",
-      "title": "3.18: Create Loop List Template",
-      "sprint": "Sprint 3: HTTP Server & Frontend",
-      "sprint_number": 3,
-      "files": "`templates/loops/index.html`",
-      "commit_message": "`feat: add loop list template with HTMX`"
-    },
+     {
+       "issue_number": 61,
+       "task_id": "3.18",
+       "title": "3.18: Create Loop List Template",
+       "sprint": "Sprint 3: HTTP Server & Frontend",
+       "sprint_number": 3,
+       "files": "`templates/loops/index.html`",
+       "commit_message": "`feat: add loop list template with HTMX`",
+       "status": "done"
+     },
     {
       "issue_number": 62,
       "task_id": "3.19",
