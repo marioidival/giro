@@ -493,7 +493,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/src/handlers/loops.rs` (part 1)",
-      "commit_message": "`feat: add loop CRUD HTTP handlers`"
+      "commit_message": "`feat: add loop CRUD HTTP handlers`",
+      "status": "done"
     },
     {
       "issue_number": 49,
