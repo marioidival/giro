@@ -13,6 +13,10 @@ thiserror.workspace = true
 uuid.workspace = true
 chrono.workspace = true
 tracing.workspace = true
+futures = "0.3"
+
+# Docker
+bollard = "0.18"
 
 # LLM Providers
 anthropic_rust = "0.1"

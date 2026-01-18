@@ -5,5 +5,6 @@ pub mod provider;
 pub mod tools;
 
 pub use agent::{AgentConfig, AgentError, AgentResult, CodeAgent, MAX_CONTEXT_ENTRIES};
+pub use executor::ExecutionContext;
 pub use mocks::MockLLMProvider;
 pub use provider::ClaudeProvider;
