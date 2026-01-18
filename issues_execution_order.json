@@ -601,7 +601,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`templates/base.html`",
-      "commit_message": "`feat: add base HTML template with Tailwind and HTMX`"
+      "commit_message": "`feat: add base HTML template with Tailwind and HTMX`",
+      "status": "done"
     },
     {
       "issue_number": 60,
