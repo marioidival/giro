@@ -413,7 +413,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-services/src/executor.rs` (part 4)",
-      "commit_message": "`feat: add task execution with LLM and container integration`"
+      "commit_message": "`feat: add task execution with LLM and container integration`",
+      "status": "done"
     },
     {
       "issue_number": 41,
