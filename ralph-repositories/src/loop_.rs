@@ -194,7 +194,7 @@ impl LoopRepository {
         .bind(loop_.iteration_delay)
         .bind(&loop_.git_repo_url)
         .bind(&loop_.git_branch_pattern)
-        .bind(&loop_.status.to_string())
+        .bind(loop_.status.to_string())
         .bind(loop_.current_iteration)
         .bind(&loop_.container_id)
         .bind(loop_.created_at)
@@ -323,7 +323,7 @@ impl LoopRepository {
             WHERE id = ?
             "#,
         )
-        .bind(&status.to_string())
+        .bind(status.to_string())
         .bind(&container_id)
         .bind(now)
         .bind(id)
