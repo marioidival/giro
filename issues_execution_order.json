@@ -453,7 +453,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/Cargo.toml`, `ralph-server/src/lib.rs`",
-      "commit_message": "`feat: create ralph-server crate structure`"
+      "commit_message": "`feat: create ralph-server crate structure`",
+      "status": "done"
     },
     {
       "issue_number": 45,
