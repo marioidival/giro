@@ -13,7 +13,7 @@ use crate::handlers::{
 };
 use crate::middleware::{
     auth::auth_middleware,
-    csrf::{CsrfTokenStore, csrf_middleware},
+    csrf::csrf_middleware,
     rate_limit::{create_rate_limiter_from_env, rate_limit_middleware},
 };
 use axum::http::{HeaderName, HeaderValue, Method};
@@ -207,6 +207,7 @@ mod tests {
 mod integration_tests {
     use super::*;
     use crate::middleware::auth::SessionStore;
+    use crate::middleware::csrf::CsrfTokenStore;
     use axum::{
         body::Body,
         body::to_bytes,
