@@ -1,11 +1,7 @@
-// Handler modules
 pub mod handlers;
-
-// Middleware modules
 pub mod middleware;
-
-// Template modules
+pub mod router;
 pub mod templates;
-
-// Validation utilities
 pub mod validation;
+
+pub use router::create_router;

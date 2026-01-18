@@ -104,17 +104,18 @@ pub struct LogoutResponse {
 /// 4. Returns the user ID and session token
 ///
 /// # Arguments
-/// * `payload` - The user registration data (JSON)
 /// * `state` - The application state containing auth service and session store
+/// * `payload` - The user registration data (JSON)
 ///
 /// # Returns
 /// * `201 Created` with user details on success
 /// * `400 Bad Request` for validation errors
 /// * `409 Conflict` for duplicate usernames
 /// * `500 Internal Server Error` for server errors
+#[axum::debug_handler]
 pub async fn register(
-    Json(payload): Json<CreateUser>,
     State(state): State<AppState>,
+    Json(payload): Json<CreateUser>,
 ) -> (StatusCode, Json<RegisterResponse>) {
     // Validate username
     if let Err(e) = validate_username(&payload.username) {
@@ -203,17 +204,18 @@ pub async fn register(
 /// 4. Returns the user ID and session token
 ///
 /// # Arguments
-/// * `payload` - The user login data (JSON)
 /// * `state` - The application state containing auth service and session store
+/// * `payload` - The user login data (JSON)
 ///
 /// # Returns
 /// * `200 OK` with user details and session token on success
 /// * `400 Bad Request` for validation errors
 /// * `401 Unauthorized` for invalid credentials
 /// * `500 Internal Server Error` for server errors
+#[axum::debug_handler]
 pub async fn login(
-    Json(payload): Json<LoginUser>,
     State(state): State<AppState>,
+    Json(payload): Json<LoginUser>,
 ) -> (StatusCode, Json<LoginResponse>) {
     // Validate username
     if let Err(e) = validate_username(&payload.username) {
