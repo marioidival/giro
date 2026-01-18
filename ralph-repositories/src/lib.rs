@@ -5,6 +5,7 @@ pub mod file;
 pub mod git_credential;
 pub mod iteration;
 pub mod loop_;
+pub mod loop_template;
 pub mod task;
 pub mod user;
 
@@ -15,5 +16,6 @@ pub use file::FileRepository;
 pub use git_credential::GitCredentialsRepository;
 pub use iteration::IterationRepository;
 pub use loop_::LoopRepository;
+pub use loop_template::LoopTemplateRepository;
 pub use task::TaskRepository;
 pub use user::UserRepository;

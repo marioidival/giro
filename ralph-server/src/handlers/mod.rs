@@ -5,6 +5,7 @@ pub mod health;
 pub mod home;
 pub mod loops;
 pub mod tasks;
+pub mod templates;
 pub mod user;
 
 pub use api_keys::api_keys_page;
@@ -25,4 +26,8 @@ pub use loops::{
     pause_loop, resume_loop, start_loop, stop_loop,
 };
 pub use tasks::{create_task, delete_task, get_task, list_tasks};
+pub use templates::{
+    CreateTemplateRequest, TemplateDetail, TemplateSummary, create_template, delete_template,
+    get_template, list_templates, templates_page,
+};
 pub use user::{UserDisplay, profile_page};

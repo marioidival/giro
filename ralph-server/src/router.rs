@@ -15,6 +15,7 @@ use crate::handlers::{
         new_loop_form, pause_loop, resume_loop, start_loop, stop_loop,
     },
     tasks::{create_task, delete_task, get_task, list_tasks, new_task_form},
+    templates::{create_template, delete_template, get_template, list_templates, templates_page},
     user::profile_page,
 };
 use crate::middleware::{
@@ -145,6 +146,12 @@ fn protected_routes() -> Router<AppState> {
         .route("/api/tasks/{id}", get(get_task).delete(delete_task))
         .route("/git/credentials", get(git_credentials_page))
         .route("/keys", get(api_keys_page))
+        .route("/templates", get(templates_page))
+        .route("/api/templates", get(list_templates).post(create_template))
+        .route(
+            "/api/templates/{id}",
+            get(get_template).delete(delete_template),
+        )
         .route(
             "/api/git/credentials",
             get(list_git_credentials).post(create_git_credentials),
@@ -257,7 +264,9 @@ mod integration_tests {
         body::to_bytes,
         http::{Method, Request, StatusCode},
     };
-    use ralph_repositories::{GitCredentialsRepository, LoopRepository, TaskRepository};
+    use ralph_repositories::{
+        GitCredentialsRepository, LoopRepository, LoopTemplateRepository, TaskRepository,
+    };
     use ralph_services::{AuthService, DockerManager, LoopExecutor};
     use sqlx::SqlitePool;
     use std::sync::Arc;
@@ -377,6 +386,33 @@ mod integration_tests {
         .await
         .unwrap();
 
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS loop_templates (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                is_public INTEGER NOT NULL DEFAULT 0,
+                owner_id TEXT,
+                prd TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                docker_image TEXT,
+                cpu_limit INTEGER,
+                memory_limit INTEGER,
+                max_iterations INTEGER,
+                iteration_timeout INTEGER,
+                iteration_delay INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
         let user_repo = ralph_repositories::UserRepository::new(pool.clone());
         let auth_service = AuthService::new(user_repo);
         let session_store = SessionStore::new();
@@ -385,6 +421,7 @@ mod integration_tests {
         let task_repository = TaskRepository::new(pool.clone());
         let git_credentials_repository = GitCredentialsRepository::new(pool.clone());
         let api_key_repository = ralph_repositories::ApiKeyRepository::new(pool.clone());
+        let template_repository = LoopTemplateRepository::new(pool.clone());
 
         let docker = Arc::new(DockerManager::new());
         let agent_config = ralph_agent::agent::AgentConfig::default();
@@ -406,6 +443,7 @@ mod integration_tests {
             task_repository,
             git_credentials_repository,
             api_key_repository,
+            template_repository,
             loop_executor,
             broadcast_manager,
         )

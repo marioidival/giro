@@ -424,7 +424,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_status_changes_broadcast_to_clients() {
-        use ralph_repositories::{LoopRepository, TaskRepository};
+        use ralph_repositories::{LoopRepository, LoopTemplateRepository, TaskRepository};
         use ralph_services::{AuthService, DockerManager, LoopExecutor};
         use sqlx::SqlitePool;
         use std::sync::Arc;
@@ -505,6 +505,7 @@ mod tests {
         let git_credentials_repository =
             ralph_repositories::GitCredentialsRepository::new(pool.clone());
         let api_key_repository = ralph_repositories::ApiKeyRepository::new(pool.clone());
+        let template_repository = LoopTemplateRepository::new(pool.clone());
         let docker = Arc::new(DockerManager::new());
         let agent_config = ralph_agent::agent::AgentConfig::default();
         let loop_executor = LoopExecutor::new(
@@ -524,6 +525,7 @@ mod tests {
             task_repository,
             git_credentials_repository,
             api_key_repository,
+            template_repository,
             loop_executor,
             broadcast_manager.clone(),
         );

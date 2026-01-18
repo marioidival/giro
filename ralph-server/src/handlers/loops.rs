@@ -1068,7 +1068,7 @@ mod tests {
             body::Body,
             http::{Method, Request, StatusCode},
         };
-        use ralph_repositories::{LoopRepository, TaskRepository};
+        use ralph_repositories::{LoopRepository, LoopTemplateRepository, TaskRepository};
         use ralph_services::{AuthService, LoopExecutor};
         use sqlx::SqlitePool;
         use std::sync::Arc;
@@ -1165,6 +1165,7 @@ mod tests {
             let git_credentials_repository =
                 ralph_repositories::GitCredentialsRepository::new(pool.clone());
             let api_key_repository = ralph_repositories::ApiKeyRepository::new(pool.clone());
+            let template_repository = LoopTemplateRepository::new(pool.clone());
 
             let docker = Arc::new(ralph_services::DockerManager::new());
             let agent_config = ralph_agent::agent::AgentConfig::default();
@@ -1186,6 +1187,7 @@ mod tests {
                 task_repository,
                 git_credentials_repository,
                 api_key_repository,
+                template_repository,
                 loop_executor,
                 broadcast_manager,
             )

@@ -4,6 +4,7 @@
 //! All handlers use JSON request/response format and integrate with the AuthService
 //! and SessionStore for authentication and session management.
 
+use askama::Template;
 use axum::{
     Json,
     extract::State,
@@ -12,11 +13,11 @@ use axum::{
 };
 use ralph_models::{CreateUser, LoginUser};
 use ralph_repositories::{
-    ApiKeyRepository, GitCredentialsRepository, LoopRepository, TaskRepository,
+    ApiKeyRepository, GitCredentialsRepository, LoopRepository, LoopTemplateRepository,
+    TaskRepository,
 };
 use ralph_services::{AuthService, LoopExecutor};
 use serde::{Deserialize, Serialize};
-use askama::Template;
 
 use crate::middleware::auth::SessionStore;
 use crate::middleware::csrf::CsrfToken;
@@ -43,6 +44,8 @@ pub struct AppState {
     pub git_credentials_repository: GitCredentialsRepository,
     /// API key repository for API key database operations
     pub api_key_repository: ApiKeyRepository,
+    /// Template repository for template database operations
+    pub template_repository: LoopTemplateRepository,
     /// Loop executor for controlling loop execution (start, pause, resume, stop)
     pub loop_executor: LoopExecutor,
     /// Broadcast manager for WebSocket connections
@@ -60,6 +63,7 @@ impl AppState {
     /// * `task_repository` - The task repository instance
     /// * `git_credentials_repository` - The git credentials repository instance
     /// * `api_key_repository` - The API key repository instance
+    /// * `template_repository` - The template repository instance
     /// * `loop_executor` - The loop executor instance for controlling loop execution
     /// * `broadcast_manager` - The broadcast manager instance for WebSocket connections
     #[allow(clippy::too_many_arguments)]
@@ -71,6 +75,7 @@ impl AppState {
         task_repository: TaskRepository,
         git_credentials_repository: GitCredentialsRepository,
         api_key_repository: ApiKeyRepository,
+        template_repository: LoopTemplateRepository,
         loop_executor: LoopExecutor,
         broadcast_manager: crate::websocket::BroadcastManager,
     ) -> Self {
@@ -82,6 +87,7 @@ impl AppState {
             task_repository,
             git_credentials_repository,
             api_key_repository,
+            template_repository,
             loop_executor,
             broadcast_manager,
         }
