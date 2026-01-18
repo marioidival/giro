@@ -5,21 +5,28 @@
 use crate::handlers::{
     auth::{AppState, login, logout, register},
     health_check,
+    loops::{
+        create_loop, delete_loop, get_loop, list_loops, pause_loop, resume_loop, start_loop,
+        stop_loop,
+    },
+    tasks::{create_task, delete_task, get_task, list_tasks},
 };
-use axum::http::HeaderValue;
+use crate::middleware::auth::auth_middleware;
+use axum::http::{HeaderName, HeaderValue, Method};
 use axum::{
-    Router,
+    Extension, Router,
     routing::{get, post},
 };
 use std::env;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::CorsLayer;
 
 /// Creates and configures the HTTP router for the Ralph Loop Manager.
 ///
 /// This function sets up:
 /// - Public routes (no authentication required)
+/// - Protected routes (authentication required)
 /// - CORS layer with configurable origins from environment variables
-/// - Route handlers for health checks and authentication
+/// - Route handlers for health checks, authentication, loops, and tasks
 ///
 /// # Arguments
 /// * `state` - The application state containing shared services and stores
@@ -48,8 +55,49 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/auth/register", post(register))
         .route("/api/auth/login", post(login))
         .route("/api/auth/logout", post(logout))
+        .merge(protected_routes())
+        .layer(Extension(state.session_store.clone()))
         .layer(cors)
         .with_state(state)
+}
+
+/// Creates and configures protected routes that require authentication.
+///
+/// All routes in this router require a valid session token in request headers.
+/// The session token can be provided via:
+/// - `session` header
+/// - `authorization` header
+///
+/// # Returns
+/// * A configured `Router` instance with authentication middleware applied
+///
+/// # Protected Routes
+/// ## Loops
+/// - `GET /api/loops` - List all loops for the authenticated user
+/// - `POST /api/loops` - Create a new loop
+/// - `GET /api/loops/:id` - Get a specific loop
+/// - `DELETE /api/loops/:id` - Delete a loop
+/// - `POST /api/loops/:id/start` - Start a loop
+/// - `POST /api/loops/:id/pause` - Pause a running loop
+/// - `POST /api/loops/:id/resume` - Resume a paused loop
+/// - `POST /api/loops/:id/stop` - Stop a loop
+///
+/// ## Tasks
+/// - `POST /api/loops/:id/tasks` - Create a task for a loop
+/// - `GET /api/loops/:id/tasks` - List tasks for a loop
+/// - `GET /api/tasks/:id` - Get a specific task
+/// - `DELETE /api/tasks/:id` - Delete a task
+fn protected_routes() -> Router<AppState> {
+    Router::new()
+        .route("/api/loops", get(list_loops).post(create_loop))
+        .route("/api/loops/{id}", get(get_loop).delete(delete_loop))
+        .route("/api/loops/{id}/start", post(start_loop))
+        .route("/api/loops/{id}/pause", post(pause_loop))
+        .route("/api/loops/{id}/resume", post(resume_loop))
+        .route("/api/loops/{id}/stop", post(stop_loop))
+        .route("/api/loops/{id}/tasks", get(list_tasks).post(create_task))
+        .route("/api/tasks/{id}", get(get_task).delete(delete_task))
+        .route_layer(axum::middleware::from_fn(auth_middleware))
 }
 
 /// Builds a CORS layer from a comma-separated list of origins.
@@ -69,16 +117,32 @@ fn build_cors_layer(origins_str: &str) -> CorsLayer {
         })
         .collect();
 
+    let allowed_methods = vec![
+        Method::GET,
+        Method::POST,
+        Method::PUT,
+        Method::PATCH,
+        Method::DELETE,
+        Method::OPTIONS,
+    ];
+
+    let allowed_headers: Vec<HeaderName> = vec![
+        HeaderName::from_static("content-type"),
+        HeaderName::from_static("authorization"),
+        HeaderName::from_static("session"),
+    ];
+
     CorsLayer::new()
         .allow_origin(origins)
-        .allow_methods(Any)
-        .allow_headers(Any)
+        .allow_methods(allowed_methods)
+        .allow_headers(allowed_headers)
         .allow_credentials(true)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::env;
 
     #[test]
     fn test_cors_layer_with_single_origin() {
@@ -124,5 +188,346 @@ mod tests {
             env::var("CORS_ORIGINS").unwrap_or_else(|_| "http://localhost:3000".to_string());
 
         assert_eq!(cors_origins, "http://localhost:3000");
+    }
+}
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use axum::{
+        body::Body,
+        body::to_bytes,
+        http::{Method, Request, StatusCode},
+    };
+    use ralph_repositories::{LoopRepository, TaskRepository};
+    use ralph_services::{AuthService, LoopExecutor};
+    use sqlx::SqlitePool;
+    use std::sync::Arc;
+    use tower::ServiceExt;
+
+    async fn create_test_state() -> AppState {
+        let pool = SqlitePool::connect(":memory:").await.unwrap();
+
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS users (
+                id TEXT PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                email TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS loops (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                prd TEXT NOT NULL,
+                owner_id TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                model TEXT NOT NULL,
+                docker_image TEXT NOT NULL,
+                cpu_limit INTEGER NOT NULL,
+                memory_limit INTEGER NOT NULL,
+                max_iterations INTEGER NOT NULL,
+                iteration_timeout INTEGER NOT NULL,
+                iteration_delay INTEGER NOT NULL,
+                git_repo_url TEXT,
+                git_branch_pattern TEXT NOT NULL,
+                status TEXT NOT NULL,
+                current_iteration INTEGER NOT NULL DEFAULT 0,
+                container_id TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS tasks (
+                id TEXT PRIMARY KEY,
+                loop_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                description TEXT,
+                status TEXT NOT NULL,
+                priority INTEGER NOT NULL,
+                parent_task_id TEXT,
+                created_by TEXT NOT NULL,
+                iteration_id TEXT,
+                started_at TEXT,
+                completed_at TEXT,
+                error_message TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (loop_id) REFERENCES loops(id) ON DELETE CASCADE
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let user_repo = ralph_repositories::UserRepository::new(pool.clone());
+        let auth_service = AuthService::new(user_repo);
+        let session_store = SessionStore::new();
+        let loop_repository = LoopRepository::new(pool.clone());
+        let task_repository = TaskRepository::new(pool.clone());
+        let docker = Arc::new(ralph_services::DockerManager::new());
+        let agent_config = ralph_agent::agent::AgentConfig::default();
+        let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config);
+
+        AppState::new(
+            auth_service,
+            session_store.clone(),
+            loop_repository,
+            task_repository,
+            loop_executor,
+        )
+    }
+
+    #[tokio::test]
+    async fn test_protected_loops_routes_require_auth() {
+        let state = create_test_state().await;
+        let app = create_router(state);
+
+        let test_routes = vec![
+            ("/api/loops", Method::GET),
+            ("/api/loops", Method::POST),
+            ("/api/loops/test-id", Method::GET),
+            ("/api/loops/test-id", Method::DELETE),
+            ("/api/loops/test-id/start", Method::POST),
+            ("/api/loops/test-id/pause", Method::POST),
+            ("/api/loops/test-id/resume", Method::POST),
+            ("/api/loops/test-id/stop", Method::POST),
+        ];
+
+        for (route, method) in test_routes {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(route)
+                        .method(method)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "Route {} should return 401 without auth",
+                route
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_protected_tasks_routes_require_auth() {
+        let state = create_test_state().await;
+        let app = create_router(state);
+
+        let test_routes = vec![
+            ("/api/loops/test-id/tasks", Method::GET),
+            ("/api/loops/test-id/tasks", Method::POST),
+            ("/api/tasks/test-id", Method::GET),
+            ("/api/tasks/test-id", Method::DELETE),
+        ];
+
+        for (route, method) in test_routes {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(route)
+                        .method(method)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "Route {} should return 401 without auth",
+                route
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_protected_routes_with_valid_session() {
+        let state = create_test_state().await;
+        let app = create_router(state.clone());
+
+        let user_id = "test-user-id".to_string();
+        let session_id = state.session_store.create_session(user_id.clone()).await;
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/loops")
+                    .method(Method::GET)
+                    .header("session", session_id)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        let status = response.status();
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let body_str = String::from_utf8(body.to_vec()).unwrap();
+
+        assert_eq!(status, StatusCode::OK);
+        assert!(body_str.contains("\"success\":true"));
+    }
+
+    #[tokio::test]
+    async fn test_public_routes_work_without_auth() {
+        let state = create_test_state().await;
+        let app = create_router(state);
+
+        let test_routes = vec![
+            ("/health", Method::GET),
+            ("/api/auth/register", Method::POST),
+            ("/api/auth/login", Method::POST),
+        ];
+
+        for (route, method) in test_routes {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(route)
+                        .method(method)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_ne!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "Public route {} should not return 401",
+                route
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_all_loop_routes_with_valid_session() {
+        let state = create_test_state().await;
+        let app = create_router(state.clone());
+
+        let user_id = "test-user-id".to_string();
+        let session_id = state.session_store.create_session(user_id).await;
+
+        let test_cases = vec![
+            ("/api/loops", Method::GET),
+            ("/api/loops", Method::POST),
+            ("/api/loops/test-id", Method::GET),
+            ("/api/loops/test-id", Method::DELETE),
+            ("/api/loops/test-id/start", Method::POST),
+            ("/api/loops/test-id/pause", Method::POST),
+            ("/api/loops/test-id/resume", Method::POST),
+            ("/api/loops/test-id/stop", Method::POST),
+        ];
+
+        for (route, method) in test_cases {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(route)
+                        .method(method)
+                        .header("session", &session_id)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_ne!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "Route {} with valid session should not return 401",
+                route
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_all_task_routes_with_valid_session() {
+        let state = create_test_state().await;
+        let app = create_router(state.clone());
+
+        let user_id = "test-user-id".to_string();
+        let session_id = state.session_store.create_session(user_id).await;
+
+        let test_cases = vec![
+            ("/api/loops/test-id/tasks", Method::GET),
+            ("/api/loops/test-id/tasks", Method::POST),
+            ("/api/tasks/test-id", Method::GET),
+            ("/api/tasks/test-id", Method::DELETE),
+        ];
+
+        for (route, method) in test_cases {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(route)
+                        .method(method)
+                        .header("session", &session_id)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_ne!(
+                response.status(),
+                StatusCode::UNAUTHORIZED,
+                "Route {} with valid session should not return 401",
+                route
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_invalid_session_returns_401() {
+        let state = create_test_state().await;
+        let app = create_router(state);
+
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/loops")
+                    .method(Method::GET)
+                    .header("session", "invalid-session-id")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 }
