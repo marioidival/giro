@@ -1143,10 +1143,12 @@ mod tests {
             let csrf_store = CsrfTokenStore::new();
             let loop_repository = LoopRepository::new(pool.clone());
             let task_repository = TaskRepository::new(pool.clone());
+            let git_credentials_repository =
+                ralph_repositories::GitCredentialsRepository::new(pool.clone());
 
             let docker = Arc::new(ralph_services::DockerManager::new());
             let agent_config = ralph_agent::agent::AgentConfig::default();
-            let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config);
+            let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config, None);
 
             let broadcast_manager = crate::websocket::BroadcastManager::new();
 
@@ -1156,6 +1158,7 @@ mod tests {
                 csrf_store,
                 loop_repository,
                 task_repository,
+                git_credentials_repository,
                 loop_executor,
                 broadcast_manager,
             )

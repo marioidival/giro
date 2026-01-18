@@ -602,7 +602,7 @@ mod tests {
         let docker = Arc::new(DockerManager::new());
         let agent_config = AgentConfig::default();
 
-        let executor1 = LoopExecutor::new(pool, docker, agent_config);
+        let executor1 = LoopExecutor::new(pool, docker, agent_config, None);
         let executor2 = executor1.clone();
 
         // Both executors should be valid and independent
@@ -628,7 +628,7 @@ mod tests {
             timeout_seconds: 120,
         };
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
 
         assert_eq!(executor.agent_config.max_iterations, 20);
         assert_eq!(executor.agent_config.max_tokens_per_request, Some(8000));
@@ -714,7 +714,7 @@ mod tests {
             })
             .await?;
 
-        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
 
         // Run execution loop briefly (should process at least high priority task)
         let loop_id_owned = loop_.id.clone();
@@ -725,7 +725,7 @@ mod tests {
                     .expect("Failed to connect"),
             );
             let docker = Arc::new(DockerManager::new());
-            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default());
+            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default(), None);
             _executor.execution_loop(&loop_id_owned).await
         });
 
@@ -744,7 +744,7 @@ mod tests {
         assert!(updated_loop.unwrap().current_iteration > 0);
 
         // Clean up: stop the loop
-        let executor = LoopExecutor::new(pool, docker, agent_config);
+        let executor = LoopExecutor::new(pool, docker, agent_config, None);
         executor.stop(&loop_.id).await?;
 
         Ok(())
@@ -791,7 +791,7 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
 
         // Run execution loop
         let loop_id_owned = loop_.id.clone();
@@ -802,7 +802,7 @@ mod tests {
                     .expect("Failed to connect"),
             );
             let docker = Arc::new(DockerManager::new());
-            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default());
+            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default(), None);
             _executor.execution_loop(&loop_id_owned).await
         });
 
@@ -875,7 +875,7 @@ mod tests {
                 .await?;
         }
 
-        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
 
         // Run execution loop
         let loop_id_owned = loop_.id.clone();
@@ -886,7 +886,7 @@ mod tests {
                     .expect("Failed to connect"),
             );
             let docker = Arc::new(DockerManager::new());
-            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default());
+            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default(), None);
             _executor.execution_loop(&loop_id_owned).await
         });
 
@@ -966,7 +966,7 @@ mod tests {
             })
             .await?;
 
-        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
 
         // Run execution loop
         let loop_id_owned = loop_.id.clone();
@@ -977,7 +977,7 @@ mod tests {
                     .expect("Failed to connect"),
             );
             let docker = Arc::new(DockerManager::new());
-            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default());
+            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default(), None);
             _executor.execution_loop(&loop_id_owned).await
         });
 
@@ -992,7 +992,7 @@ mod tests {
         assert!(task_data.error_message.is_some());
 
         // Clean up
-        let executor = LoopExecutor::new(pool, docker, agent_config);
+        let executor = LoopExecutor::new(pool, docker, agent_config, None);
         executor.stop(&loop_.id).await?;
 
         Ok(())
@@ -1038,7 +1038,7 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
@@ -1112,7 +1112,7 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
@@ -1192,7 +1192,7 @@ mod tests {
         let loop_ = loop_repo.create(create_loop).await?;
 
         // Start the loop
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
         executor.start(&loop_.id).await?;
 
         // Create a task and try to execute it
@@ -1260,7 +1260,7 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
@@ -1328,7 +1328,7 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
@@ -1391,7 +1391,7 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
@@ -1462,7 +1462,7 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
@@ -1533,7 +1533,7 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone());
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());

@@ -483,9 +483,11 @@ mod tests {
         let auth_service = AuthService::new(user_repo);
         let loop_repository = LoopRepository::new(pool.clone());
         let task_repository = TaskRepository::new(pool.clone());
+        let git_credentials_repository =
+            ralph_repositories::GitCredentialsRepository::new(pool.clone());
         let docker = Arc::new(DockerManager::new());
         let agent_config = ralph_agent::agent::AgentConfig::default();
-        let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config);
+        let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config, None);
         let broadcast_manager = BroadcastManager::new();
 
         let _state = crate::handlers::auth::AppState::new(
@@ -494,6 +496,7 @@ mod tests {
             crate::middleware::csrf::CsrfTokenStore::new(),
             loop_repository.clone(),
             task_repository,
+            git_credentials_repository,
             loop_executor,
             broadcast_manager.clone(),
         );

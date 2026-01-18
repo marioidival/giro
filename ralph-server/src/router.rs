@@ -4,6 +4,7 @@
 
 use crate::handlers::{
     auth::{AppState, login, logout, register},
+    git::{create_git_credentials, delete_git_credentials, list_git_credentials},
     health_check,
     loops::{
         create_loop, delete_loop, get_loop, get_loop_page, list_loops, list_loops_page,
@@ -20,7 +21,7 @@ use crate::websocket::websocket_handler;
 use axum::http::{HeaderName, HeaderValue, Method};
 use axum::{
     Extension, Router,
-    routing::{get, post},
+    routing::{delete, get, post},
 };
 use std::env;
 use tower_http::cors::CorsLayer;
@@ -103,6 +104,11 @@ pub fn create_router(state: AppState) -> Router {
 /// - `GET /api/loops/:id/tasks` - List tasks for a loop
 /// - `GET /api/tasks/:id` - Get a specific task
 /// - `DELETE /api/tasks/:id` - Delete a task
+///
+/// ## Git Credentials
+/// - `GET /api/git/credentials` - List all Git credentials for the authenticated user
+/// - `POST /api/git/credentials` - Create a new Git credential
+/// - `DELETE /api/git/credentials/:id` - Delete a Git credential
 fn protected_routes() -> Router<AppState> {
     Router::new()
         .route("/loops", get(list_loops_page))
@@ -118,6 +124,11 @@ fn protected_routes() -> Router<AppState> {
         .route("/api/loops/{id}/stream", get(websocket_handler))
         .route("/api/loops/{id}/tasks", get(list_tasks).post(create_task))
         .route("/api/tasks/{id}", get(get_task).delete(delete_task))
+        .route(
+            "/api/git/credentials",
+            get(list_git_credentials).post(create_git_credentials),
+        )
+        .route("/api/git/credentials/{id}", delete(delete_git_credentials))
         .route_layer(axum::middleware::from_fn(csrf_middleware))
         .route_layer(axum::middleware::from_fn(auth_middleware))
 }
@@ -223,7 +234,7 @@ mod integration_tests {
         body::to_bytes,
         http::{Method, Request, StatusCode},
     };
-    use ralph_repositories::{LoopRepository, TaskRepository};
+    use ralph_repositories::{GitCredentialsRepository, LoopRepository, TaskRepository};
     use ralph_services::{AuthService, DockerManager, LoopExecutor};
     use sqlx::SqlitePool;
     use std::sync::Arc;
@@ -304,16 +315,37 @@ mod integration_tests {
         .await
         .unwrap();
 
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS git_credentials (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                provider TEXT NOT NULL,
+                encrypted_token TEXT NOT NULL,
+                username TEXT,
+                email TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                UNIQUE(user_id, provider),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            )
+            "#,
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
         let user_repo = ralph_repositories::UserRepository::new(pool.clone());
         let auth_service = AuthService::new(user_repo);
         let session_store = SessionStore::new();
         let csrf_store = CsrfTokenStore::new();
         let loop_repository = LoopRepository::new(pool.clone());
         let task_repository = TaskRepository::new(pool.clone());
+        let git_credentials_repository = GitCredentialsRepository::new(pool.clone());
 
         let docker = Arc::new(DockerManager::new());
         let agent_config = ralph_agent::agent::AgentConfig::default();
-        let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config);
+        let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config, None);
 
         let broadcast_manager = crate::websocket::BroadcastManager::new();
 
@@ -323,6 +355,7 @@ mod integration_tests {
             csrf_store,
             loop_repository,
             task_repository,
+            git_credentials_repository,
             loop_executor,
             broadcast_manager,
         )
