@@ -1,6 +1,4 @@
-read PRD-ralph-loop-management.md
-
-read 2026-01-18-ralph-loop-manager-sprint-breakdown.md
+read PRD-ralph-loop-management-v1.3.md
 
 read issues_queue.txt
 
