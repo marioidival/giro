@@ -1,4 +1,6 @@
 use anthropic_rust::{Client, ContentBlock, Model};
+use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionRequestArgs};
+use async_openai::{Client as OpenAIClient, config::OpenAIConfig};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -110,6 +112,86 @@ impl LLMProviderTrait for ClaudeProvider {
             .collect();
 
         let tokens_used = response.usage.input_tokens + response.usage.output_tokens;
+
+        Ok(LLMResponse {
+            content,
+            tokens_used,
+            suggested_tasks: vec![],
+            commands: vec![],
+        })
+    }
+}
+
+/// OpenAI LLM provider
+pub struct OpenAIProvider {
+    client: OpenAIClient<OpenAIConfig>,
+}
+
+impl OpenAIProvider {
+    /// Create a new OpenAIProvider with an API key
+    ///
+    /// # Arguments
+    /// * `api_key` - OpenAI API key
+    pub fn new(api_key: String) -> anyhow::Result<Self> {
+        let client = OpenAIClient::with_config(OpenAIConfig::new().with_api_key(api_key));
+        Ok(Self { client })
+    }
+
+    /// Build a system prompt from PRD and context
+    fn build_system_prompt(&self, prd: &str, context: &[String]) -> String {
+        let mut prompt = String::from("# Project PRD\n");
+        prompt.push_str(prd);
+        prompt.push_str("\n\n");
+
+        if !context.is_empty() {
+            prompt.push_str("# Context\n");
+            for (i, ctx) in context.iter().enumerate() {
+                prompt.push_str(&format!("## Iteration {}\n{}\n\n", i + 1, ctx));
+            }
+        }
+
+        prompt
+    }
+}
+
+#[async_trait]
+impl LLMProviderTrait for OpenAIProvider {
+    async fn complete(&self, request: &LLMRequest) -> anyhow::Result<LLMResponse> {
+        use async_openai::types::{
+            ChatCompletionRequestSystemMessage, ChatCompletionRequestUserMessage,
+        };
+
+        let system_prompt = self.build_system_prompt(&request.prd, &request.context);
+
+        let mut messages: Vec<ChatCompletionRequestMessage> =
+            vec![ChatCompletionRequestSystemMessage::from(system_prompt.as_str()).into()];
+
+        for ctx in &request.context {
+            messages.push(ChatCompletionRequestUserMessage::from(ctx.as_str()).into());
+        }
+
+        messages.push(ChatCompletionRequestUserMessage::from(request.task.as_str()).into());
+
+        let max_tokens = request.max_tokens.unwrap_or_default() as u32;
+
+        let chat_request = CreateChatCompletionRequestArgs::default()
+            .max_tokens(max_tokens)
+            .messages(messages)
+            .build()?;
+
+        let response = self.client.chat().create(chat_request).await?;
+
+        let content = response
+            .choices
+            .first()
+            .and_then(|choice| choice.message.content.as_ref())
+            .ok_or_else(|| anyhow::anyhow!("No content in response"))?
+            .clone();
+
+        let usage = response
+            .usage
+            .ok_or_else(|| anyhow::anyhow!("No usage information in response"))?;
+        let tokens_used = usage.total_tokens as u32;
 
         Ok(LLMResponse {
             content,
@@ -254,6 +336,59 @@ mod tests {
             .expect("ANTHROPIC_API_KEY must be set for integration test");
 
         let provider = ClaudeProvider::new(api_key).unwrap();
+        let request = LLMRequest {
+            prd: "Build a simple calculator".to_string(),
+            task: "What is 2 + 2?".to_string(),
+            context: vec![],
+            max_tokens: Some(100),
+        };
+
+        let result = provider.complete(&request).await.unwrap();
+
+        assert!(!result.content.is_empty());
+        assert!(result.tokens_used > 0);
+        assert!(result.suggested_tasks.is_empty());
+        assert!(result.commands.is_empty());
+    }
+
+    #[test]
+    fn test_openai_provider_build_system_prompt_with_context() {
+        let provider = OpenAIProvider::new("sk-test-key-for-testing".to_string()).unwrap();
+        let prd = "Build a web server";
+        let context = vec![
+            "Iteration 1: Created HTTP handler".to_string(),
+            "Iteration 2: Added authentication".to_string(),
+        ];
+
+        let prompt = provider.build_system_prompt(prd, &context);
+
+        assert!(prompt.contains("# Project PRD"));
+        assert!(prompt.contains("Build a web server"));
+        assert!(prompt.contains("# Context"));
+        assert!(prompt.contains("Iteration 1: Created HTTP handler"));
+        assert!(prompt.contains("Iteration 2: Added authentication"));
+    }
+
+    #[test]
+    fn test_openai_provider_build_system_prompt_without_context() {
+        let provider = OpenAIProvider::new("sk-test-key-for-testing".to_string()).unwrap();
+        let prd = "Build a CLI tool";
+        let context = vec![];
+
+        let prompt = provider.build_system_prompt(prd, &context);
+
+        assert!(prompt.contains("# Project PRD"));
+        assert!(prompt.contains("Build a CLI tool"));
+        assert!(!prompt.contains("# Context"));
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires OPENAI_API_KEY environment variable"]
+    async fn test_openai_provider_integration() {
+        let api_key = std::env::var("OPENAI_API_KEY")
+            .expect("OPENAI_API_KEY must be set for integration test");
+
+        let provider = OpenAIProvider::new(api_key).unwrap();
         let request = LLMRequest {
             prd: "Build a simple calculator".to_string(),
             task: "What is 2 + 2?".to_string(),
