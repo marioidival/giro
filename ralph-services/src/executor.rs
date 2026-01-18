@@ -2,8 +2,9 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use ralph_agent::provider::LLMProviderTrait;
 use ralph_agent::{AgentConfig, CodeAgent, ExecutionContext, MockLLMProvider};
-use ralph_models::{IterationStatus, LoopStatus, TaskStatus};
-use ralph_repositories::{IterationRepository, LoopRepository, TaskRepository};
+use ralph_agent::provider::{ClaudeProvider, OpenAIProvider};
+use ralph_models::{ApiKeyProvider, IterationStatus, LoopStatus, TaskStatus};
+use ralph_repositories::{ApiKeyRepository, IterationRepository, LoopRepository, TaskRepository};
 use sqlx::{Pool, Sqlite};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -21,6 +22,7 @@ pub struct LoopExecutor {
     git_service: Option<Arc<GitService>>,
     #[allow(dead_code)]
     agent_config: AgentConfig,
+    api_key_repo: Arc<ApiKeyRepository>,
 }
 
 impl LoopExecutor {
@@ -31,17 +33,20 @@ impl LoopExecutor {
     /// * `docker` - Docker manager for container operations
     /// * `agent_config` - Agent configuration
     /// * `git_service` - Optional Git service for automated commits and PRs
+    /// * `api_key_repo` - API key repository for user-specific keys
     pub fn new(
         pool: Arc<Pool<Sqlite>>,
         docker: Arc<DockerManager>,
         agent_config: AgentConfig,
         git_service: Option<Arc<GitService>>,
+        api_key_repo: Arc<ApiKeyRepository>,
     ) -> Self {
         Self {
             pool,
             docker,
             git_service,
             agent_config,
+            api_key_repo,
         }
     }
 
@@ -198,6 +203,138 @@ impl LoopExecutor {
 
         info!("Loop {} stopped successfully", loop_id);
         Ok(())
+    }
+
+    /// Get LLM provider for a loop based on user's API key
+    ///
+    /// # Arguments
+    /// * `loop_` - Loop to get provider for
+    ///
+    /// # Returns
+    /// Box<dyn LLMProviderTrait> - LLM provider instance
+    ///
+    /// # Errors
+    /// Returns error if:
+    /// - Provider is not supported
+    /// - No active API key exists for the user and provider
+    /// - API key decryption fails
+    /// - Provider creation fails
+    fn get_llm_provider(
+        &self,
+        loop_: &ralph_models::Loop,
+    ) -> Result<Box<dyn LLMProviderTrait>> {
+        let provider_str = loop_.provider.as_str();
+
+        // Parse provider string to ApiKeyProvider
+        let api_key_provider = match provider_str {
+            "anthropic" => ApiKeyProvider::Anthropic,
+            "openai" => ApiKeyProvider::OpenAI,
+            "amp" => ApiKeyProvider::Amp,
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Unsupported provider: {}. Must be one of: anthropic, openai, amp",
+                    provider_str
+                ))
+            }
+        };
+
+        // Use blocking task for async API key retrieval
+        let api_key_repo = self.api_key_repo.clone();
+        let user_id = loop_.owner_id.clone();
+
+        // We need to get the decrypted API key
+        // Since we're in a sync context, we need to use a different approach
+        // For now, return an error indicating we need the API key to be provided
+        // In a real implementation, this would be done in an async context
+
+        // For the mock provider, we can return it directly
+        if provider_str == "mock" {
+            return Ok(Box::new(MockLLMProvider::new()));
+        }
+
+        // For production providers, we need to get the API key asynchronously
+        // This is a limitation that needs to be addressed in the execute_task method
+        // For now, we'll return a placeholder error
+        Err(anyhow::anyhow!(
+            "API key retrieval must be done in async context - use get_llm_provider_async instead"
+        ))
+    }
+
+    /// Get LLM provider for a loop based on user's API key (async version)
+    ///
+    /// # Arguments
+    /// * `loop_` - Loop to get provider for
+    ///
+    /// # Returns
+    /// Box<dyn LLMProviderTrait> - LLM provider instance
+    ///
+    /// # Errors
+    /// Returns error if:
+    /// - Provider is not supported
+    /// - No active API key exists for the user and provider
+    /// - API key decryption fails
+    /// - Provider creation fails
+    async fn get_llm_provider_async(
+        &self,
+        loop_: &ralph_models::Loop,
+    ) -> Result<Box<dyn LLMProviderTrait>> {
+        let provider_str = loop_.provider.as_str();
+
+        // For mock provider, return directly
+        if provider_str == "mock" {
+            return Ok(Box::new(MockLLMProvider::new()));
+        }
+
+        // Parse provider string to ApiKeyProvider
+        let api_key_provider = match provider_str {
+            "anthropic" => ApiKeyProvider::Anthropic,
+            "openai" => ApiKeyProvider::OpenAI,
+            "amp" => ApiKeyProvider::Amp,
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Unsupported provider: {}. Must be one of: anthropic, openai, amp",
+                    provider_str
+                ))
+            }
+        };
+
+        // Get active API key for user and provider
+        let api_key = self
+            .api_key_repo
+            .get_active_for_user(&loop_.owner_id, api_key_provider.clone())
+            .await?
+            .with_context(|| {
+                format!(
+                    "No active API key found for user {} and provider {}",
+                    loop_.owner_id, provider_str
+                )
+            })?;
+
+        // Decrypt the API key
+        let decrypted_key = self
+            .api_key_repo
+            .get_decrypted_key(&api_key.id)
+            .await
+            .context("Failed to decrypt API key")?;
+
+        // Create provider with user's API key
+        match api_key_provider {
+            ApiKeyProvider::Anthropic => {
+                let provider = ClaudeProvider::new(decrypted_key)
+                    .context("Failed to create Claude provider")?;
+                Ok(Box::new(provider))
+            }
+            ApiKeyProvider::OpenAI => {
+                let provider = OpenAIProvider::new(decrypted_key)
+                    .context("Failed to create OpenAI provider")?;
+                Ok(Box::new(provider))
+            }
+            ApiKeyProvider::Amp => {
+                // Amp provider uses a different implementation
+                // For now, return MockLLMProvider
+                Ok(Box::new(MockLLMProvider::new()))
+            }
+        }
     }
 
     /// Main execution loop for a running Ralph loop
@@ -407,7 +544,11 @@ impl LoopExecutor {
             .await
             .context("Failed to create iteration")?;
 
-        let provider: Box<dyn LLMProviderTrait> = Box::new(MockLLMProvider::new());
+        // Get LLM provider with user's API key
+        let provider = self.get_llm_provider_async(&loop_).await.context(format!(
+            "Failed to get LLM provider for loop {} with provider {}",
+            task.loop_id, loop_.provider
+        ))?;
 
         let agent = CodeAgent::new(provider, self.agent_config.clone());
 
@@ -602,7 +743,8 @@ mod tests {
         let docker = Arc::new(DockerManager::new());
         let agent_config = AgentConfig::default();
 
-        let executor1 = LoopExecutor::new(pool, docker, agent_config, None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let executor1 = LoopExecutor::new(pool, docker, agent_config, None, api_key_repo);
         let executor2 = executor1.clone();
 
         // Both executors should be valid and independent
@@ -628,7 +770,8 @@ mod tests {
             timeout_seconds: 120,
         };
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
 
         assert_eq!(executor.agent_config.max_iterations, 20);
         assert_eq!(executor.agent_config.max_tokens_per_request, Some(8000));
@@ -714,7 +857,8 @@ mod tests {
             })
             .await?;
 
-        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
 
         // Run execution loop briefly (should process at least high priority task)
         let loop_id_owned = loop_.id.clone();
@@ -725,7 +869,8 @@ mod tests {
                     .expect("Failed to connect"),
             );
             let docker = Arc::new(DockerManager::new());
-            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default(), None);
+            let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default(), None, api_key_repo);
             _executor.execution_loop(&loop_id_owned).await
         });
 
@@ -744,7 +889,8 @@ mod tests {
         assert!(updated_loop.unwrap().current_iteration > 0);
 
         // Clean up: stop the loop
-        let executor = LoopExecutor::new(pool, docker, agent_config, None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let executor = LoopExecutor::new(pool, docker, agent_config, None, api_key_repo);
         executor.stop(&loop_.id).await?;
 
         Ok(())
@@ -791,7 +937,8 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
 
         // Run execution loop
         let loop_id_owned = loop_.id.clone();
@@ -802,7 +949,8 @@ mod tests {
                     .expect("Failed to connect"),
             );
             let docker = Arc::new(DockerManager::new());
-            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default(), None);
+            let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default(), None, api_key_repo);
             _executor.execution_loop(&loop_id_owned).await
         });
 
@@ -875,7 +1023,8 @@ mod tests {
                 .await?;
         }
 
-        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
 
         // Run execution loop
         let loop_id_owned = loop_.id.clone();
@@ -886,7 +1035,8 @@ mod tests {
                     .expect("Failed to connect"),
             );
             let docker = Arc::new(DockerManager::new());
-            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default(), None);
+            let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default(), None, api_key_repo);
             _executor.execution_loop(&loop_id_owned).await
         });
 
@@ -966,7 +1116,8 @@ mod tests {
             })
             .await?;
 
-        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let _executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
 
         // Run execution loop
         let loop_id_owned = loop_.id.clone();
@@ -977,7 +1128,8 @@ mod tests {
                     .expect("Failed to connect"),
             );
             let docker = Arc::new(DockerManager::new());
-            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default(), None);
+            let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+            let _executor = LoopExecutor::new(pool, docker, AgentConfig::default(), None, api_key_repo);
             _executor.execution_loop(&loop_id_owned).await
         });
 
@@ -992,7 +1144,8 @@ mod tests {
         assert!(task_data.error_message.is_some());
 
         // Clean up
-        let executor = LoopExecutor::new(pool, docker, agent_config, None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let executor = LoopExecutor::new(pool, docker, agent_config, None, api_key_repo);
         executor.stop(&loop_.id).await?;
 
         Ok(())
@@ -1038,7 +1191,8 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
@@ -1112,7 +1266,8 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
@@ -1192,7 +1347,8 @@ mod tests {
         let loop_ = loop_repo.create(create_loop).await?;
 
         // Start the loop
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
         executor.start(&loop_.id).await?;
 
         // Create a task and try to execute it
@@ -1260,7 +1416,8 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
@@ -1328,7 +1485,8 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
@@ -1391,7 +1549,8 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
@@ -1462,7 +1621,8 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
@@ -1533,7 +1693,8 @@ mod tests {
         };
         let loop_ = loop_repo.create(create_loop).await?;
 
-        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None);
+        let api_key_repo = Arc::new(ApiKeyRepository::new((*pool).clone()));
+        let executor = LoopExecutor::new(pool.clone(), docker.clone(), agent_config.clone(), None, api_key_repo);
         executor.start(&loop_.id).await?;
 
         let task_repo = ralph_repositories::TaskRepository::new((*pool).clone());
