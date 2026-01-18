@@ -1,0 +1,1296 @@
+{
+  "description": "GitHub issues for Ralph Loop Manager - ordered by execution priority",
+  "total_issues": 127,
+  "sprints": {
+    "sprint_1": {
+      "name": "Sprint 1: Foundation - Workspace & Database",
+      "count": 18
+    },
+    "sprint_2": {
+      "name": "Sprint 2: LLM Agent & Services",
+      "count": 25
+    },
+    "sprint_3": {
+      "name": "Sprint 3: HTTP Server & Frontend",
+      "count": 24
+    },
+    "sprint_4": {
+      "name": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "count": 12
+    },
+    "sprint_5": {
+      "name": "Sprint 5: API Key Management (P1 - HIGH)",
+      "count": 11
+    },
+    "sprint_6": {
+      "name": "Sprint 6: Enhanced Templates (P2 - LOW)",
+      "count": 6
+    },
+    "sprint_7": {
+      "name": "Sprint 7: OAuth Authentication (P2 - MEDIUM)",
+      "count": 11
+    },
+    "sprint_8": {
+      "name": "Sprint 8: Advanced Task Features (P3 - LOW)",
+      "count": 9
+    },
+    "sprint_9": {
+      "name": "Sprint 9: Production Readiness",
+      "count": 9
+    }
+  },
+  "tasksDone": [
+    {
+      "issue_number": 1,
+      "task_id": "1.1",
+      "title": "1.1: Initialize Rust Workspace",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`Cargo.toml`, `.gitignore`, `README.md`",
+      "commit_message": "`feat: initialize Rust workspace with dependencies`",
+      "status": "done"
+    },
+    {
+      "issue_number": 2,
+      "task_id": "1.2",
+      "title": "1.2: Create ralph-models Crate",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-models/Cargo.toml`, `ralph-models/src/lib.rs`",
+      "commit_message": "`feat: create ralph-models crate structure`",
+      "status": "done"
+    },
+    {
+      "issue_number": 3,
+      "task_id": "1.3",
+      "title": "1.3: Implement User Model",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-models/src/user.rs`",
+      "commit_message": "`feat: add User model with DTOs and tests`",
+      "status": "done"
+    },
+    {
+      "issue_number": 4,
+      "task_id": "1.4",
+      "title": "1.4: Implement Loop Model",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-models/src/loop_.rs`",
+      "commit_message": "`feat: add Loop model with status enum and tests`",
+      "status": "done"
+    },
+    {
+      "issue_number": 5,
+      "task_id": "1.5",
+      "title": "1.5: Implement Task Model",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-models/src/task.rs`",
+      "commit_message": "`feat: add Task model with status enum and tests`",
+      "status": "done"
+    },
+    {
+      "issue_number": 6,
+      "task_id": "1.6",
+      "title": "1.6: Update Models Exports",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-models/src/lib.rs`",
+      "commit_message": "`refactor: export all public models from ralph-models`",
+      "status": "done"
+    },
+    {
+      "issue_number": 7,
+      "task_id": "1.7a",
+      "title": "1.7a: Create Users Table Migration",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`migrations/001_users.sql`",
+      "commit_message": "`feat: add users table migration`",
+      "status": "done"
+    },
+    {
+      "issue_number": 8,
+      "task_id": "1.7b",
+      "title": "1.7b: Create Loops Table Migration",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`migrations/002_loops.sql`",
+      "commit_message": "`feat: add loops table migration`",
+      "status": "done"
+    },
+    {
+      "issue_number": 9,
+      "task_id": "1.7c",
+      "title": "1.7c: Create Tasks Table Migration",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`migrations/003_tasks.sql`",
+      "commit_message": "`feat: add tasks table migration`",
+      "status": "done"
+    },
+    {
+      "issue_number": 10,
+      "task_id": "1.7d",
+      "title": "1.7d: Create Iterations and Files Tables Migration",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`migrations/004_iterations_files.sql`",
+      "commit_message": "`feat: add iterations and files tables migration`",
+      "status": "done"
+    },
+    {
+      "issue_number": 11,
+      "task_id": "1.8",
+      "title": "1.8: Create ralph-repositories Crate",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-repositories/Cargo.toml`, `ralph-repositories/src/lib.rs`",
+      "commit_message": "`feat: create ralph-repositories crate structure`",
+      "status": "done"
+    },
+    {
+      "issue_number": 12,
+      "task_id": "1.9",
+      "title": "1.9: Implement Database Module",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-repositories/src/database.rs`",
+      "commit_message": "`feat: add Database module with SQLite optimizations`",
+      "status": "done"
+    },
+    {
+      "issue_number": 13,
+      "task_id": "1.10",
+      "title": "1.10: Implement UserRepository",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-repositories/src/user.rs`",
+      "commit_message": "`feat: add UserRepository with CRUD operations`",
+      "status": "done"
+    },
+    {
+      "issue_number": 14,
+      "task_id": "1.11",
+      "title": "1.11: Implement LoopRepository",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-repositories/src/loop_.rs`",
+      "commit_message": "`feat: add LoopRepository with optimized queries`",
+      "status": "done"
+    },
+    {
+      "issue_number": 15,
+      "task_id": "1.12",
+      "title": "1.12: Implement TaskRepository",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-repositories/src/task.rs`",
+      "commit_message": "`feat: add TaskRepository with optimized queries`",
+      "status": "done"
+    },
+    {
+      "issue_number": 16,
+      "task_id": "1.13",
+      "title": "1.13: Implement IterationRepository",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-repositories/src/iteration.rs`",
+      "commit_message": "`feat: add IterationRepository with queries`",
+      "status": "done"
+    },
+    {
+      "issue_number": 17,
+      "task_id": "1.14",
+      "title": "1.14: Implement FileRepository",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-repositories/src/file.rs`",
+      "commit_message": "`feat: add FileRepository with queries`",
+      "status": "done"
+    },
+    {
+      "issue_number": 18,
+      "task_id": "1.15",
+      "title": "1.15: Update Repositories Exports",
+      "sprint": "Sprint 1: Foundation - Workspace & Database",
+      "sprint_number": 1,
+      "files": "`ralph-repositories/src/lib.rs`",
+      "commit_message": "`refactor: export all repositories from ralph-repositories`",
+      "status": "done"
+    },
+    {
+      "issue_number": 19,
+      "task_id": "2.1",
+      "title": "2.1: Create ralph-agent Crate",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/Cargo.toml`, `ralph-agent/src/lib.rs`",
+      "commit_message": "`feat: create ralph-agent crate structure`",
+      "status": "done"
+    },
+    {
+      "issue_number": 20,
+      "task_id": "2.2",
+      "title": "2.2: Implement LLM Provider Trait",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/provider.rs` (part 1)",
+      "commit_message": "`feat: add LLM provider trait and data structures`",
+      "status": "done"
+    },
+    {
+      "issue_number": 21,
+      "task_id": "2.3",
+      "title": "2.3: Implement Mock LLM Provider",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/mocks.rs`",
+      "commit_message": "`feat: add MockLLMProvider for offline testing`",
+      "status": "done"
+    },
+    {
+      "issue_number": 22,
+      "task_id": "2.4",
+      "title": "2.4: Implement Claude Provider",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/provider.rs` (part 2)",
+      "commit_message": "`feat: add Claude LLM provider implementation`",
+      "status": "done"
+    },
+    {
+      "issue_number": 23,
+      "task_id": "2.5",
+      "title": "2.5: Implement OpenAI Provider",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/provider.rs` (part 3)",
+      "commit_message": "`feat: add OpenAI LLM provider implementation`",
+      "status": "done"
+    },
+    {
+      "issue_number": 24,
+      "task_id": "2.6",
+      "title": "2.6: Implement Response Parsers",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/provider.rs` (part 4)",
+      "commit_message": "`feat: add LLM response parsers for tasks and commands`",
+      "status": "done"
+    },
+    {
+      "issue_number": 25,
+      "task_id": "2.7",
+      "title": "2.7: Implement CodeAgent Structure",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/agent.rs` (part 1)",
+      "commit_message": "`feat: add CodeAgent structure and request building`",
+      "status": "done"
+    },
+    {
+      "issue_number": 26,
+      "task_id": "2.8",
+      "title": "2.8: Implement Timeout Enforcement",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/agent.rs` (part 2)",
+      "commit_message": "`feat: add timeout enforcement to CodeAgent`",
+      "status": "done"
+    },
+    {
+      "issue_number": 27,
+      "task_id": "2.9",
+      "title": "2.9: Implement Context Truncation",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/agent.rs` (part 3)",
+      "commit_message": "`feat: add context truncation (FIFO) to CodeAgent`",
+      "status": "done"
+    },
+    {
+      "issue_number": 28,
+      "task_id": "2.10",
+      "title": "2.10: Implement ExecutionContext",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/executor.rs`",
+      "commit_message": "`feat: add ExecutionContext for containerized command execution`",
+      "status": "done"
+    },
+    {
+      "issue_number": 29,
+      "task_id": "2.11",
+      "title": "2.11: Implement Tool Trait",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/tools.rs` (part 1)",
+      "commit_message": "`feat: add Tool trait for extensible operations`",
+      "status": "done"
+    },
+    {
+      "issue_number": 30,
+      "task_id": "2.12",
+      "title": "2.12: Implement FileTool",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/tools.rs` (part 2)",
+      "commit_message": "`feat: add FileTool for container file operations`",
+      "status": "done"
+    },
+    {
+      "issue_number": 31,
+      "task_id": "2.13",
+      "title": "2.13: Implement CommandTool",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/tools.rs` (part 3)",
+      "commit_message": "`feat: add CommandTool for shell command execution`",
+      "status": "done"
+    },
+    {
+      "issue_number": 32,
+      "task_id": "2.14",
+      "title": "2.14: Update Agent Exports",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-agent/src/lib.rs`",
+      "commit_message": "`refactor: export all agent components from ralph-agent`",
+      "status": "done"
+    },
+    {
+      "issue_number": 33,
+      "task_id": "2.15",
+      "title": "2.15: Create ralph-services Crate",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-services/Cargo.toml`, `ralph-services/src/lib.rs`",
+      "commit_message": "`feat: create ralph-services crate structure`",
+      "status": "done"
+    },
+    {
+      "issue_number": 34,
+      "task_id": "2.16",
+      "title": "2.16: Implement Password Utilities",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-services/src/auth.rs` (part 1)",
+      "commit_message": "`feat: add password hashing and verification utilities`",
+      "status": "done"
+    },
+    {
+      "issue_number": 35,
+      "task_id": "2.17",
+      "title": "2.17: Implement AuthService",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-services/src/auth.rs` (part 2)",
+      "commit_message": "`feat: add AuthService with user validation`",
+      "status": "done"
+    },
+    {
+      "issue_number": 36,
+      "task_id": "2.18",
+      "title": "2.18: Implement DockerManager",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-services/src/docker.rs`",
+      "commit_message": "`feat: add DockerManager for container lifecycle management`",
+      "status": "done"
+    },
+    {
+      "issue_number": 37,
+      "task_id": "2.19",
+      "title": "2.19: Implement LoopExecutor Structure",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-services/src/executor.rs` (part 1)",
+      "commit_message": "`feat: add LoopExecutor structure (start, pause)`",
+      "status": "done"
+    },
+    {
+      "issue_number": 38,
+      "task_id": "2.20",
+      "title": "2.20: Implement LoopExecutor Resume and Stop",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-services/src/executor.rs` (part 2)",
+      "commit_message": "`feat: add LoopExecutor (resume, stop)`",
+      "status": "done"
+    },
+    {
+      "issue_number": 39,
+      "task_id": "2.21",
+      "title": "2.21: Implement Execution Loop",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-services/src/executor.rs` (part 3)",
+      "commit_message": "`feat: add execution_loop for task processing`",
+      "status": "done"
+    },
+    {
+      "issue_number": 40,
+      "task_id": "2.22",
+      "title": "2.22: Implement Task Execution",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-services/src/executor.rs` (part 4)",
+      "commit_message": "`feat: add task execution with LLM and container integration`",
+      "status": "done"
+    },
+    {
+      "issue_number": 41,
+      "task_id": "2.23",
+      "title": "2.23: Implement Auto-create Tasks from LLM Suggestions",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-services/src/executor.rs` (part 5)",
+      "commit_message": "`feat: auto-create tasks from LLM suggestions`",
+      "status": "done"
+    },
+    {
+      "issue_number": 42,
+      "task_id": "2.24",
+      "title": "2.24: Implement Container Cleanup on Startup",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-services/src/docker.rs` (update)",
+      "commit_message": "`feat: add container cleanup on startup`",
+      "status": "done"
+    },
+    {
+      "issue_number": 43,
+      "task_id": "2.25",
+      "title": "2.25: Update Services Exports",
+      "sprint": "Sprint 2: LLM Agent & Services",
+      "sprint_number": 2,
+      "files": "`ralph-services/src/lib.rs`",
+      "commit_message": "`refactor: export all services from ralph-services`",
+      "status": "done"
+    },
+    {
+      "issue_number": 44,
+      "task_id": "3.1",
+      "title": "3.1: Create ralph-server Crate",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/Cargo.toml`, `ralph-server/src/lib.rs`",
+      "commit_message": "`feat: create ralph-server crate structure`",
+      "status": "done"
+    },
+    {
+      "issue_number": 45,
+      "task_id": "3.2",
+      "title": "3.2: Implement Input Validation",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/validation.rs`",
+      "commit_message": "`feat: add input validation utilities`",
+      "status": "done"
+    },
+    {
+      "issue_number": 46,
+      "task_id": "3.3",
+      "title": "3.3: Implement Auth Middleware",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/middleware/auth.rs`",
+      "commit_message": "`feat: add authentication middleware`",
+      "status": "done"
+    },
+    {
+      "issue_number": 47,
+      "task_id": "3.4",
+      "title": "3.4: Implement Auth Handlers",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/handlers/auth.rs`",
+      "commit_message": "`feat: add auth HTTP handlers with validation`",
+      "status": "done"
+    },
+    {
+      "issue_number": 48,
+      "task_id": "3.5",
+      "title": "3.5: Implement Loop CRUD Handlers",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/handlers/loops.rs` (part 1)",
+      "commit_message": "`feat: add loop CRUD HTTP handlers`",
+      "status": "done"
+    },
+    {
+      "issue_number": 49,
+      "task_id": "3.6",
+      "title": "3.6: Implement Loop Control Handlers",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/handlers/loops.rs` (part 2)",
+      "commit_message": "`feat: add loop control HTTP handlers`",
+      "status": "done"
+    },
+    {
+      "issue_number": 50,
+      "task_id": "3.7",
+      "title": "3.7: Implement Task Handlers",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/handlers/tasks.rs`",
+      "commit_message": "`feat: add task HTTP handlers`",
+      "status": "done"
+    },
+    {
+      "issue_number": 51,
+      "task_id": "3.8",
+      "title": "3.8: Implement Health Check Handler",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/handlers/health.rs`",
+      "commit_message": "`feat: add health check handler with DB status`",
+      "status": "done"
+    },
+    {
+      "issue_number": 52,
+      "task_id": "3.9",
+      "title": "3.9: Create Handlers Module",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/handlers/mod.rs`",
+      "commit_message": "`refactor: organize handlers into module`",
+      "status": "done"
+    },
+    {
+      "issue_number": 53,
+      "task_id": "3.10",
+      "title": "3.10: Setup HTTP Router (Auth Routes)",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/router.rs` (part 1)",
+      "commit_message": "`feat: add HTTP router with auth routes`",
+      "status": "done"
+    },
+    {
+      "issue_number": 54,
+      "task_id": "3.11",
+      "title": "3.11: Setup HTTP Router (Protected Routes)",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/router.rs` (part 2)",
+      "commit_message": "`feat: add HTTP router with protected routes`",
+      "status": "done"
+    },
+    {
+      "issue_number": 55,
+      "task_id": "3.12",
+      "title": "3.12: Setup HTTP Server",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/main.rs`",
+      "commit_message": "`feat: add HTTP server main binary`",
+      "status": "done"
+    },
+    {
+      "issue_number": 56,
+      "task_id": "3.13",
+      "title": "3.13: Add Rate Limiting",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/middleware/rate_limit.rs`",
+      "commit_message": "`feat: add rate limiting middleware`",
+      "status": "done"
+    },
+    {
+      "issue_number": 57,
+      "task_id": "3.14",
+      "title": "3.14: Add CSRF Protection",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/middleware/csrf.rs`",
+      "commit_message": "`feat: add CSRF protection middleware`",
+      "status": "done"
+    },
+    {
+      "issue_number": 58,
+      "task_id": "3.15",
+      "title": "3.15: Add WebSocket for Real-time Updates",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/websocket.rs`",
+      "commit_message": "`feat: add WebSocket route for real-time progress updates`",
+      "status": "done"
+    },
+    {
+      "issue_number": 59,
+      "task_id": "3.16",
+      "title": "3.16: Create Base Template",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`templates/base.html`",
+      "commit_message": "`feat: add base HTML template with Tailwind and HTMX`",
+      "status": "done"
+    },
+    {
+      "issue_number": 60,
+      "task_id": "3.17",
+      "title": "3.17: Create Login/Register Templates",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`templates/auth/login.html`, `templates/auth/register.html`",
+      "commit_message": "`feat: add auth templates (login, register)`",
+      "status": "done"
+    },
+    {
+      "issue_number": 61,
+      "task_id": "3.18",
+      "title": "3.18: Create Loop List Template",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`templates/loops/index.html`",
+      "commit_message": "`feat: add loop list template with HTMX`",
+      "status": "done"
+    },
+    {
+      "issue_number": 62,
+      "task_id": "3.19",
+      "title": "3.19: Create Loop Form Template",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/src/templates/mod.rs`, `ralph-server/src/handlers/loops.rs`, `ralph-server/src/router.rs`, `ralph-server/templates/base.html`, `ralph-server/templates/auth/login.html`, `ralph-server/templates/auth/register.html`, `ralph-server/templates/loops/index.html`, `ralph-server/templates/loops/new.html`, `ralph-server/tests/templates_auth.rs`",
+      "commit_message": "`feat: add loop creation form template`",
+      "status": "done"
+    },
+    {
+      "issue_number": 63,
+      "task_id": "3.20",
+      "title": "3.20: Create Loop Detail Template",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`templates/loops/show.html`, `ralph-server/src/templates/mod.rs`, `ralph-server/src/handlers/loops.rs`, `ralph-server/src/router.rs`",
+      "commit_message": "`feat: add loop detail template with WebSocket`",
+      "status": "done"
+    },
+    {
+      "issue_number": 64,
+      "task_id": "3.21",
+      "title": "3.21: Create Task Form Template",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/templates/tasks/new.html`, `ralph-server/tests/templates_tasks.rs`, `ralph-server/src/handlers/tasks.rs`, `ralph-server/src/router.rs`, `ralph-server/src/templates/mod.rs`",
+      "commit_message": "`feat: add task form template and handler`",
+      "status": "done"
+    },
+    {
+      "issue_number": 65,
+      "task_id": "3.22",
+      "title": "3.22: Create Base Docker Image",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`docker/Dockerfile`",
+      "commit_message": "`feat: add base Docker image for loop containers`",
+      "status": "done"
+    },
+    {
+      "issue_number": 66,
+      "task_id": "3.23",
+      "title": "3.23: Add Environment Variables Config",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`.env.example`",
+      "commit_message": "`feat: add environment configuration template`",
+      "status": "done"
+    },
+    {
+      "issue_number": 67,
+      "task_id": "3.24",
+      "title": "3.24: Update README",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`README.md`",
+      "commit_message": "`docs: update README with comprehensive setup guide`",
+      "status": "done"
+    },
+    {
+      "issue_number": 70,
+      "task_id": "4.1",
+      "title": "4.1: Create GitCredential Model",
+      "sprint": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "sprint_number": 4,
+      "files": "`ralph-models/src/git_credential.rs`",
+      "commit_message": "`feat: add GitCredential model`",
+      "status": "done"
+    }
+  ],
+  "issues": [
+    {
+      "issue_number": 71,
+      "task_id": "4.2",
+      "title": "4.2: Create Git Credentials Table Migration",
+      "sprint": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "sprint_number": 4,
+      "files": "`migrations/006_git_credentials.sql`",
+      "commit_message": "`feat: add git_credentials table migration`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 72,
+      "task_id": "4.3",
+      "title": "4.3: Create GitCredentialsRepository",
+      "sprint": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "sprint_number": 4,
+      "files": "`ralph-repositories/src/git_credential.rs`",
+      "commit_message": "`feat: add GitCredentialsRepository with encryption`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 73,
+      "task_id": "4.4",
+      "title": "4.4: Create GitService",
+      "sprint": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "sprint_number": 4,
+      "files": "`ralph-services/src/git.rs`",
+      "commit_message": "`feat: add GitService with async Git operations`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 74,
+      "task_id": "4.5",
+      "title": "4.5: Integrate GitService into LoopExecutor",
+      "sprint": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "sprint_number": 4,
+      "files": "`ralph-services/src/executor.rs` (update)",
+      "commit_message": "`feat: integrate GitService into LoopExecutor for auto-commit and PR creation`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 75,
+      "task_id": "4.6",
+      "title": "4.6: Add Git Credential Handlers",
+      "sprint": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "sprint_number": 4,
+      "files": "`ralph-server/src/handlers/git.rs`",
+      "commit_message": "`feat: add HTTP handlers for Git credentials management`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 76,
+      "task_id": "4.7",
+      "title": "4.7: Add Git Routes to Router",
+      "sprint": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "sprint_number": 4,
+      "files": "`ralph-server/src/router.rs` (update)",
+      "commit_message": "`feat: add Git credential routes to router`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 77,
+      "task_id": "4.8",
+      "title": "4.8: Create Git Credentials UI Template",
+      "sprint": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "sprint_number": 4,
+      "files": "`ralph-server/templates/git/credentials.html`",
+      "commit_message": "`feat: add Git credentials UI template`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 78,
+      "task_id": "4.9",
+      "title": "4.9: Add Encryption Utilities",
+      "sprint": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "sprint_number": 4,
+      "files": "`ralph-services/src/crypto.rs`",
+      "commit_message": "`feat: add encryption utilities for Git credential storage`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 79,
+      "task_id": "4.10",
+      "title": "4.10: Sprint 4 Demo - Automated Git Operations",
+      "sprint": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "sprint_number": 4,
+      "files": "`demo_sprint4.sh`",
+      "commit_message": "`docs: add Sprint 4 demo script for Git integration`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 80,
+      "task_id": "4.11",
+      "title": "4.11: Run Integration Tests for Git Integration",
+      "sprint": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "sprint_number": 4,
+      "files": "N/A",
+      "commit_message": "`test: run integration tests for Git integration`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 81,
+      "task_id": "4.12",
+      "title": "4.12: Sprint 4 Demo Review",
+      "sprint": "Sprint 4: Git Integration (P0 - CRITICAL)",
+      "sprint_number": 4,
+      "files": "N/A",
+      "commit_message": "`docs: complete Sprint 4 review`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 82,
+      "task_id": "5.1",
+      "title": "5.1: Create ApiKey Model",
+      "sprint": "Sprint 5: API Key Management (P1 - HIGH)",
+      "sprint_number": 5,
+      "files": "`ralph-models/src/api_key.rs`",
+      "commit_message": "`feat: add ApiKey model`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 83,
+      "task_id": "5.2",
+      "title": "5.2: Create API Keys Table Migration",
+      "sprint": "Sprint 5: API Key Management (P1 - HIGH)",
+      "sprint_number": 5,
+      "files": "`migrations/007_api_keys.sql`",
+      "commit_message": "`feat: add api_keys table migration`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 84,
+      "task_id": "5.3",
+      "title": "5.3: Add Encryption Dependencies",
+      "sprint": "Sprint 5: API Key Management (P1 - HIGH)",
+      "sprint_number": 5,
+      "files": "`ralph-services/Cargo.toml`",
+      "commit_message": "`chore: add encryption dependencies (aes-gcm, aead, base64)`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 85,
+      "task_id": "5.4",
+      "title": "5.4: Create Encryption Utilities",
+      "sprint": "Sprint 5: API Key Management (P1 - HIGH)",
+      "sprint_number": 5,
+      "files": "`ralph-services/src/crypto.rs`",
+      "commit_message": "`feat: add encryption utilities for API key storage`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 86,
+      "task_id": "5.5",
+      "title": "5.5: Create ApiKeyRepository",
+      "sprint": "Sprint 5: API Key Management (P1 - HIGH)",
+      "sprint_number": 5,
+      "files": "`ralph-repositories/src/api_key.rs`",
+      "commit_message": "`feat: add ApiKeyRepository with encryption`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 87,
+      "task_id": "5.6",
+      "title": "5.6: Update LoopExecutor to Use User-Specific Keys",
+      "sprint": "Sprint 5: API Key Management (P1 - HIGH)",
+      "sprint_number": 5,
+      "files": "`ralph-services/src/executor.rs` (update)",
+      "commit_message": "`feat: update LoopExecutor to use user-specific API keys`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 88,
+      "task_id": "5.7",
+      "title": "5.7: Create API Key Handlers",
+      "sprint": "Sprint 5: API Key Management (P1 - HIGH)",
+      "sprint_number": 5,
+      "files": "`ralph-server/src/handlers/api_keys.rs`",
+      "commit_message": "`feat: add HTTP handlers for API key management`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 89,
+      "task_id": "5.8",
+      "title": "5.8: Add API Key Routes to Router",
+      "sprint": "Sprint 5: API Key Management (P1 - HIGH)",
+      "sprint_number": 5,
+      "files": "`ralph-server/src/router.rs` (update)",
+      "commit_message": "`feat: add API key routes to router`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 90,
+      "task_id": "5.9",
+      "title": "5.9: Create API Key Management UI",
+      "sprint": "Sprint 5: API Key Management (P1 - HIGH)",
+      "sprint_number": 5,
+      "files": "`ralph-server/templates/user/keys.html`",
+      "commit_message": "`feat: add API key management UI template`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 91,
+      "task_id": "5.10",
+      "title": "5.10: Sprint 5 Demo - API Key Management",
+      "sprint": "Sprint 5: API Key Management (P1 - HIGH)",
+      "sprint_number": 5,
+      "files": "`demo_sprint5.sh`",
+      "commit_message": "`docs: add Sprint 5 demo script for API key management`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 92,
+      "task_id": "5.11",
+      "title": "5.11: Run Integration Tests for API Key Management",
+      "sprint": "Sprint 5: API Key Management (P1 - HIGH)",
+      "sprint_number": 5,
+      "files": "N/A",
+      "commit_message": "`test: run integration tests for API key management`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 93,
+      "task_id": "6.1",
+      "title": "6.1: Create Home/Landing Page",
+      "sprint": "Sprint 6: Enhanced Templates (P2 - LOW)",
+      "sprint_number": 6,
+      "files": "`ralph-server/templates/home.html`",
+      "commit_message": "`feat: add home/landing page`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 94,
+      "task_id": "6.2",
+      "title": "6.2: Create User Profile/Settings Page",
+      "sprint": "Sprint 6: Enhanced Templates (P2 - LOW)",
+      "sprint_number": 6,
+      "files": "`ralph-server/templates/user/profile.html`",
+      "commit_message": "`feat: add user profile and settings page`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 95,
+      "task_id": "6.3",
+      "title": "6.3: Create Loop Templates Library Page",
+      "sprint": "Sprint 6: Enhanced Templates (P2 - LOW)",
+      "sprint_number": 6,
+      "files": "`ralph-server/templates/loops/templates.html`",
+      "commit_message": "`feat: add loop templates library page`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 96,
+      "task_id": "6.4",
+      "title": "6.4: Improve Navigation and Styling",
+      "sprint": "Sprint 6: Enhanced Templates (P2 - LOW)",
+      "sprint_number": 6,
+      "files": "`ralph-server/templates/base.html` (update), `ralph-server/src/router.rs` (update)",
+      "commit_message": "`feat: improve navigation and add links to new pages`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 97,
+      "task_id": "6.5",
+      "title": "6.5: Add User Preferences Storage",
+      "sprint": "Sprint 6: Enhanced Templates (P2 - LOW)",
+      "sprint_number": 6,
+      "files": "`ralph-models/src/user.rs` (update), `migrations/008_user_preferences.sql`",
+      "commit_message": "`feat: add user preferences storage and migration`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 98,
+      "task_id": "6.6",
+      "title": "6.6: Sprint 6 Demo - Enhanced Templates",
+      "sprint": "Sprint 6: Enhanced Templates (P2 - LOW)",
+      "sprint_number": 6,
+      "files": "`demo_sprint6.sh`",
+      "commit_message": "`docs: add Sprint 6 demo script for enhanced templates`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 99,
+      "task_id": "7.1",
+      "title": "7.1: Create OAuth Token Model",
+      "sprint": "Sprint 7: OAuth Authentication (P2 - MEDIUM)",
+      "sprint_number": 7,
+      "files": "`ralph-models/src/oauth_token.rs`",
+      "commit_message": "`feat: add OAuth token model`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 100,
+      "task_id": "7.2",
+      "title": "7.2: Add OAuth Token Columns to Users Table",
+      "sprint": "Sprint 7: OAuth Authentication (P2 - MEDIUM)",
+      "sprint_number": 7,
+      "files": "`migrations/009_oauth_tokens_users.sql`",
+      "commit_message": "`feat: add OAuth token columns to users table`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 101,
+      "task_id": "7.3",
+      "title": "7.3: Create OAuth Token Repository",
+      "sprint": "Sprint 7: OAuth Authentication (P2 - MEDIUM)",
+      "sprint_number": 7,
+      "files": "`ralph-repositories/src/oauth_token.rs`",
+      "commit_message": "`feat: add OAuthTokenRepository`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 102,
+      "task_id": "7.4",
+      "title": "7.4: Add OAuth Dependencies",
+      "sprint": "Sprint 7: OAuth Authentication (P2 - MEDIUM)",
+      "sprint_number": 7,
+      "files": "`ralph-services/Cargo.toml`",
+      "commit_message": "`chore: add OAuth dependencies (oauth2, reqwest)`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 103,
+      "task_id": "7.5",
+      "title": "7.5: Create OAuth Service",
+      "sprint": "Sprint 7: OAuth Authentication (P2 - MEDIUM)",
+      "sprint_number": 7,
+      "files": "`ralph-services/src/oauth.rs`",
+      "commit_message": "`feat: add OAuth service with authorization code grant flow`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 104,
+      "task_id": "7.6",
+      "title": "7.6: Create OAuth Handlers",
+      "sprint": "Sprint 7: OAuth Authentication (P2 - MEDIUM)",
+      "sprint_number": 7,
+      "files": "`ralph-server/src/handlers/oauth.rs`",
+      "commit_message": "`feat: add OAuth handlers (authorize, callback, unlink)`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 105,
+      "task_id": "7.7",
+      "title": "7.7: Add OAuth Routes to Router",
+      "sprint": "Sprint 7: OAuth Authentication (P2 - MEDIUM)",
+      "sprint_number": 7,
+      "files": "`ralph-server/src/router.rs` (update)",
+      "commit_message": "`feat: add OAuth routes to router`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 106,
+      "task_id": "7.8",
+      "title": "7.8: Update Login Template with OAuth Buttons",
+      "sprint": "Sprint 7: OAuth Authentication (P2 - MEDIUM)",
+      "sprint_number": 7,
+      "files": "`ralph-server/templates/auth/login.html` (update)",
+      "commit_message": "`feat: add OAuth login buttons to login template`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 107,
+      "task_id": "7.9",
+      "title": "7.9: Update Auth Middleware for OAuth",
+      "sprint": "Sprint 7: OAuth Authentication (P2 - MEDIUM)",
+      "sprint_number": 7,
+      "files": "`ralph-server/src/middleware/auth.rs` (update)",
+      "commit_message": "`feat: update auth middleware to support OAuth sessions`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 108,
+      "task_id": "7.10",
+      "title": "7.10: Sprint 7 Demo - OAuth Authentication",
+      "sprint": "Sprint 7: OAuth Authentication (P2 - MEDIUM)",
+      "sprint_number": 7,
+      "files": "`demo_sprint7.sh`",
+      "commit_message": "`docs: add Sprint 7 demo script for OAuth authentication`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 109,
+      "task_id": "7.11",
+      "title": "7.11: Run Integration Tests for OAuth",
+      "sprint": "Sprint 7: OAuth Authentication (P2 - MEDIUM)",
+      "sprint_number": 7,
+      "files": "N/A",
+      "commit_message": "`test: run integration tests for OAuth authentication`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 110,
+      "task_id": "8.1",
+      "title": "8.1: Add Task Position Column",
+      "sprint": "Sprint 8: Advanced Task Features (P3 - LOW)",
+      "sprint_number": 8,
+      "files": "`migrations/010_task_position.sql`",
+      "commit_message": "`feat: add task position column and index`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 111,
+      "task_id": "8.2",
+      "title": "8.2: Create Task Position Update Handler",
+      "sprint": "Sprint 8: Advanced Task Features (P3 - LOW)",
+      "sprint_number": 8,
+      "files": "`ralph-server/src/handlers/tasks.rs` (update)",
+      "commit_message": "`feat: add task position update handler`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 112,
+      "task_id": "8.3",
+      "title": "8.3: Add Drag & Drop to Task List Template",
+      "sprint": "Sprint 8: Advanced Task Features (P3 - LOW)",
+      "sprint_number": 8,
+      "files": "`ralph-server/templates/tasks/list.html` (update)",
+      "commit_message": "`feat: add drag & drop task reordering to UI`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 113,
+      "task_id": "8.4",
+      "title": "8.4: Create Kanban Board Template",
+      "sprint": "Sprint 8: Advanced Task Features (P3 - LOW)",
+      "sprint_number": 8,
+      "files": "`ralph-server/templates/tasks/kanban.html`",
+      "commit_message": "`feat: add Kanban board template with drag & drop`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 114,
+      "task_id": "8.5",
+      "title": "8.5: Add Task Status Update Handler",
+      "sprint": "Sprint 8: Advanced Task Features (P3 - LOW)",
+      "sprint_number": 8,
+      "files": "`ralph-server/src/handlers/tasks.rs` (update)",
+      "commit_message": "`feat: add task status update handler with WebSocket broadcast`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 115,
+      "task_id": "8.6",
+      "title": "8.6: Create CSV Parser/Generator",
+      "sprint": "Sprint 8: Advanced Task Features (P3 - LOW)",
+      "sprint_number": 8,
+      "files": "`ralph-server/src/handlers/tasks.rs` (update), `ralph-server/Cargo.toml` (update)",
+      "commit_message": "`feat: add task CSV import/export functionality`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 116,
+      "task_id": "8.7",
+      "title": "8.7: Add Import/Export UI to Templates",
+      "sprint": "Sprint 8: Advanced Task Features (P3 - LOW)",
+      "sprint_number": 8,
+      "files": "`ralph-server/templates/tasks/list.html` (update)",
+      "commit_message": "`feat: add task import/export UI to templates`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 117,
+      "task_id": "8.8",
+      "title": "8.8: Sprint 8 Demo - Advanced Task Features",
+      "sprint": "Sprint 8: Advanced Task Features (P3 - LOW)",
+      "sprint_number": 8,
+      "files": "`demo_sprint8.sh`",
+      "commit_message": "`docs: add Sprint 8 demo script for advanced task features`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 118,
+      "task_id": "8.9",
+      "title": "8.9: Run Integration Tests for Advanced Task Features",
+      "sprint": "Sprint 8: Advanced Task Features (P3 - LOW)",
+      "sprint_number": 8,
+      "files": "N/A",
+      "commit_message": "`test: run integration tests for advanced task features`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 119,
+      "task_id": "9.1",
+      "title": "9.1: Add Monitoring/Metrics Infrastructure",
+      "sprint": "Sprint 9: Production Readiness",
+      "sprint_number": 9,
+      "files": "`ralph-server/src/metrics.rs`, `ralph-server/src/middleware/monitoring.rs`",
+      "commit_message": "`feat: add monitoring/metrics infrastructure with Prometheus`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 120,
+      "task_id": "9.2",
+      "title": "9.2: Add Session Persistence (Redis)",
+      "sprint": "Sprint 9: Production Readiness",
+      "sprint_number": 9,
+      "files": "`ralph-services/Cargo.toml`, `ralph-services/src/session.rs`",
+      "commit_message": "`feat: add Redis session persistence with TTL and cleanup`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 121,
+      "task_id": "9.3",
+      "title": "9.3: PostgreSQL Migration Support",
+      "sprint": "Sprint 9: Production Readiness",
+      "sprint_number": 9,
+      "files": "`ralph-repositories/src/database.rs` (update), `migrations/011_postgres.sql`",
+      "commit_message": "`feat: add PostgreSQL migration support with feature flags`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 122,
+      "task_id": "9.4",
+      "title": "9.4: Add Enhanced Security Headers",
+      "sprint": "Sprint 9: Production Readiness",
+      "sprint_number": 9,
+      "files": "`ralph-server/src/middleware/security.rs` (update)",
+      "commit_message": "`feat: add enhanced security headers (CSP, XSS, frame, transport)`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 123,
+      "task_id": "9.5",
+      "title": "9.5: Add Docker Security Hardening",
+      "sprint": "Sprint 9: Production Readiness",
+      "sprint_number": 9,
+      "files": "`ralph-services/src/docker.rs` (update)",
+      "commit_message": "`feat: add Docker security hardening (seccomp, capabilities, readonly)`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 124,
+      "task_id": "9.6",
+      "title": "9.6: Add Comprehensive Logging",
+      "sprint": "Sprint 9: Production Readiness",
+      "sprint_number": 9,
+      "files": "`ralph-server/src/main.rs` (update), `ralph-repositories/src/*.rs` (update), `ralph-services/src/*.rs` (update)",
+      "commit_message": "`feat: add comprehensive logging with tracing and request IDs`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 125,
+      "task_id": "9.7",
+      "title": "9.7: Add Health Check Improvements",
+      "sprint": "Sprint 9: Production Readiness",
+      "sprint_number": 9,
+      "files": "`ralph-server/src/handlers/health.rs`, `ralph-server/src/router.rs` (update)",
+      "commit_message": "`feat: add improved health checks with component status and metrics`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 126,
+      "task_id": "9.8",
+      "title": "9.8: Sprint 9 Demo - Production Readiness",
+      "sprint": "Sprint 9: Production Readiness",
+      "sprint_number": 9,
+      "files": "`demo_sprint9.sh`",
+      "commit_message": "`docs: add Sprint 9 demo script for production readiness`",
+      "status": "pending"
+    },
+    {
+      "issue_number": 127,
+      "task_id": "9.9",
+      "title": "9.9: Run Integration Tests for Production Readiness",
+      "sprint": "Sprint 9: Production Readiness",
+      "sprint_number": 9,
+      "files": "N/A",
+      "commit_message": "`test: run integration tests for production readiness`",
+      "status": "pending"
+    }
+  ]
+}
