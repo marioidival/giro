@@ -611,7 +611,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`templates/auth/login.html`, `templates/auth/register.html`",
-      "commit_message": "`feat: add auth templates (login, register)`"
+      "commit_message": "`feat: add auth templates (login, register)`",
+      "status": "done"
     },
     {
       "issue_number": 61,

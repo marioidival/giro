@@ -1,13 +1,13 @@
 //! HTTP router for Ralph Loop Manager server.
 //!
-//! This module configures the Axum router with all route handlers and middleware.
+//! This module configures Axum router with all route handlers and middleware.
 
 use crate::handlers::{
     auth::{AppState, login, logout, register},
     health_check,
     loops::{
-        create_loop, delete_loop, get_loop, list_loops, pause_loop, resume_loop, start_loop,
-        stop_loop,
+        create_loop, delete_loop, get_loop, list_loops, list_loops_page, pause_loop, resume_loop,
+        start_loop, stop_loop,
     },
     tasks::{create_task, delete_task, get_task, list_tasks},
 };
@@ -58,6 +58,7 @@ pub fn create_router(state: AppState) -> Router {
 
     Router::new()
         .route("/health", get(health_check))
+        .route("/loops", get(list_loops_page))
         .route("/api/auth/register", post(register))
         .route("/api/auth/login", post(login))
         .route("/api/auth/logout", post(logout))

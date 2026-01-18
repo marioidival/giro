@@ -4,15 +4,19 @@
 //! All handlers require authentication via auth middleware and check ownership
 //! to ensure users can only access their own loops.
 
+use askama::Template;
 use axum::{
     Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
+    response::Html,
 };
 use ralph_models::CreateLoop;
 use serde::{Deserialize, Serialize};
 
 use crate::handlers::auth::AppState;
+use crate::middleware::csrf::CsrfToken;
+use crate::templates::LoopListTemplate;
 use crate::validation::validate_loop_name;
 
 /// Query parameters for listing loops with pagination.
@@ -184,6 +188,83 @@ fn default_page() -> usize {
 /// Default limit
 fn default_limit() -> usize {
     10
+}
+
+/// Handles rendering the loop list page (HTML).
+///
+/// This endpoint:
+/// 1. Extracts user_id from auth middleware
+/// 2. Checks if user is logged in (via logged_in header)
+/// 3. Generates CSRF token
+/// 4. Parses pagination params (page, limit) from query params
+/// 5. Calls loop_repo.list_by_owner(user_id)
+/// 6. Renders the loop list template with HTMX interactions
+///
+/// # Arguments
+/// * `query` - Pagination query parameters (page, limit)
+/// * `state` - The application state containing loop repository and CSRF store
+/// * `user_id` - The authenticated user's ID (from auth middleware)
+///
+/// # Returns
+/// * `200 OK` with HTML template on success
+/// * `500 Internal Server Error` for server errors
+pub async fn list_loops_page(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<String>,
+    Query(query): Query<ListLoopsQuery>,
+) -> (StatusCode, Html<String>) {
+    let logged_in = !user_id.is_empty();
+
+    match state.loop_repository.list_by_owner(&user_id).await {
+        Ok(mut all_loops) => {
+            let total = all_loops.len();
+            let limit = query.limit;
+            let total_pages = if total == 0 {
+                1
+            } else {
+                (total + limit - 1) / limit
+            };
+
+            let start = if query.page > 0 {
+                (query.page - 1) * limit
+            } else {
+                0
+            };
+
+            let end = std::cmp::min(start + limit, total);
+
+            let loops: Vec<LoopSummary> = if start < total {
+                all_loops.drain(start..end).map(LoopSummary::from).collect()
+            } else {
+                Vec::new()
+            };
+
+            let page = query.page as u32;
+            let csrf_token = CsrfToken::generate().to_string();
+
+            let template = LoopListTemplate {
+                logged_in,
+                csrf_token,
+                loops,
+                page,
+                total_pages: total_pages as u32,
+                has_prev: page > 1,
+                has_next: page < total_pages as u32,
+            };
+
+            match template.render() {
+                Ok(html) => (StatusCode::OK, Html(html)),
+                Err(e) => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Html(format!("Failed to render template: {}", e)),
+                ),
+            }
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Html(format!("Failed to retrieve loops: {}", e)),
+        ),
+    }
 }
 
 /// Handles loop creation requests.
@@ -847,4 +928,155 @@ mod tests {
     // Integration tests for loop control require Docker daemon
     // These tests will be added once test infrastructure is fully set up
     // with proper Router, request builders, and mock dependencies.
+
+    #[test]
+    fn test_list_loops_page_logic() {
+        let total = 25;
+        let limit = 10;
+        let total_pages = (total + limit - 1) / limit;
+
+        assert_eq!(total_pages, 3);
+
+        let page = 2;
+        let start = (page - 1) * limit;
+        let end = std::cmp::min(start + limit, total);
+
+        assert_eq!(start, 10);
+        assert_eq!(end, 20);
+
+        let has_prev = page > 1;
+        let has_next = page < total_pages;
+
+        assert!(has_prev);
+        assert!(has_next);
+    }
+
+    #[cfg(test)]
+    mod integration_tests {
+        use super::*;
+        use crate::middleware::auth::SessionStore;
+        use crate::middleware::csrf::CsrfTokenStore;
+        use axum::{
+            body::Body,
+            http::{Method, Request, StatusCode},
+        };
+        use ralph_repositories::{LoopRepository, TaskRepository};
+        use ralph_services::{AuthService, LoopExecutor};
+        use sqlx::SqlitePool;
+        use std::sync::Arc;
+        use tower::ServiceExt;
+
+        async fn create_test_state() -> AppState {
+            let pool = SqlitePool::connect(":memory:").await.unwrap();
+
+            sqlx::query(
+                r#"
+                CREATE TABLE IF NOT EXISTS users (
+                    id TEXT PRIMARY KEY,
+                    username TEXT NOT NULL UNIQUE,
+                    email TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+                "#,
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            sqlx::query(
+                r#"
+                CREATE TABLE IF NOT EXISTS loops (
+                    id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    prd TEXT NOT NULL,
+                    owner_id TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    docker_image TEXT NOT NULL,
+                    cpu_limit INTEGER NOT NULL,
+                    memory_limit INTEGER NOT NULL,
+                    max_iterations INTEGER NOT NULL,
+                    iteration_timeout INTEGER NOT NULL,
+                    iteration_delay INTEGER NOT NULL,
+                    git_repo_url TEXT,
+                    git_branch_pattern TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    current_iteration INTEGER NOT NULL DEFAULT 0,
+                    container_id TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                "#,
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+
+            let user_repo = ralph_repositories::UserRepository::new(pool.clone());
+            let auth_service = AuthService::new(user_repo);
+            let session_store = SessionStore::new();
+            let csrf_store = CsrfTokenStore::new();
+            let loop_repository = LoopRepository::new(pool.clone());
+            let task_repository = TaskRepository::new(pool.clone());
+
+            let docker = Arc::new(ralph_services::DockerManager::new());
+            let agent_config = ralph_agent::agent::AgentConfig::default();
+            let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config);
+
+            let broadcast_manager = crate::websocket::BroadcastManager::new();
+
+            AppState::new(
+                auth_service,
+                session_store.clone(),
+                csrf_store,
+                loop_repository,
+                task_repository,
+                loop_executor,
+                broadcast_manager,
+            )
+        }
+
+        #[tokio::test]
+        async fn test_list_loops_page_renders_html() {
+            let state = create_test_state().await;
+            let app = crate::router::create_router(state.clone());
+
+            let user_id = "test-user-id".to_string();
+            let session_id = state.session_store.create_session(user_id.clone()).await;
+
+            let response = app
+                .oneshot(
+                    Request::builder()
+                        .uri("/loops?page=1&limit=10")
+                        .method(Method::GET)
+                        .header("session", &session_id)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+
+            assert_eq!(response.status(), StatusCode::OK);
+
+            let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap();
+            let html = String::from_utf8(body.to_vec()).unwrap();
+
+            assert!(
+                html.contains("<!DOCTYPE html>"),
+                "Should have HTML5 doctype"
+            );
+            assert!(
+                html.contains("tailwindcss.com"),
+                "Should include Tailwind CDN"
+            );
+            assert!(html.contains("htmx.org"), "Should include HTMX CDN");
+            assert!(html.contains("Loops"), "Should include page title");
+        }
+    }
 }
