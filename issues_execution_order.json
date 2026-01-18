@@ -153,7 +153,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-repositories/src/loop_.rs`",
-      "commit_message": "`feat: add LoopRepository with optimized queries`"
+      "commit_message": "`feat: add LoopRepository with optimized queries`",
+      "status": "done"
     },
     {
       "issue_number": 15,
