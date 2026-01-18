@@ -194,6 +194,7 @@ mod tests {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
+    use crate::middleware::auth::SessionStore;
     use axum::{
         body::Body,
         body::to_bytes,
