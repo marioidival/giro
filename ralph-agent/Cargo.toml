@@ -11,3 +11,7 @@ async-trait.workspace = true
 anyhow.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+
+# LLM Providers
+anthropic_rust = "0.1"
+async-openai = "0.28"
