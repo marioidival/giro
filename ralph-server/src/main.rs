@@ -50,7 +50,7 @@ async fn main() -> Result<()> {
     let task_repository = TaskRepository::new(pool.clone());
 
     let agent_config = AgentConfig::default();
-    let loop_executor = LoopExecutor::new(Arc::new(pool), docker.clone(), agent_config);
+    let loop_executor = LoopExecutor::new(Arc::new(pool), docker.clone(), agent_config, None);
 
     let broadcast_manager = BroadcastManager::new();
 

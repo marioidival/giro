@@ -4,13 +4,14 @@ use ralph_models::GitCredential;
 use ralph_repositories::crypto::decrypt_token;
 use std::path::PathBuf;
 use tokio::task::spawn_blocking;
+use tracing::info;
 
 /// GitService provides async wrappers for Git operations
 ///
 /// This service handles all Git-related operations for Ralph Loop Manager,
 /// including cloning repositories, creating branches, staging files,
 /// committing changes, and pushing to remotes.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GitService {
     /// Path to local git repository
     pub repo_path: PathBuf,
@@ -330,6 +331,35 @@ impl GitService {
         })
         .await
         .map_err(|e| anyhow!("Task join error: {}", e))?
+    }
+
+    /// Create a pull request for the current branch
+    ///
+    /// # Arguments
+    /// * `title` - PR title
+    /// * `body` - PR description/body
+    ///
+    /// # Returns
+    /// PR URL on success
+    ///
+    /// # Errors
+    /// Returns error if PR creation fails
+    ///
+    /// # Note
+    /// This is a placeholder implementation. In a future sprint, this will be
+    /// integrated with GitHub (octocrab) or GitLab (gitlab-sdk) APIs.
+    pub async fn create_pr(&self, title: &str, _body: &str) -> Result<String> {
+        let current_branch = self.current_branch().await?;
+        let pr_url = format!(
+            "https://github.com/{}/pull/new/{}",
+            self.credentials.username.as_deref().unwrap_or("ralph"),
+            current_branch
+        );
+        info!(
+            "PR creation placeholder - would create PR '{}' at branch '{}'",
+            title, current_branch
+        );
+        Ok(pr_url)
     }
 
     /// Build an authenticated URL with credentials embedded

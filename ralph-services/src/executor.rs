@@ -11,12 +11,14 @@ use tokio::time::{Duration, sleep};
 use tracing::{debug, error, info};
 
 use crate::docker::DockerManager;
+use crate::git::GitService;
 
 /// Executor for managing Ralph loop lifecycle
 #[derive(Clone, Debug)]
 pub struct LoopExecutor {
     pool: Arc<Pool<Sqlite>>,
     docker: Arc<DockerManager>,
+    git_service: Option<Arc<GitService>>,
     #[allow(dead_code)]
     agent_config: AgentConfig,
 }
@@ -28,14 +30,17 @@ impl LoopExecutor {
     /// * `pool` - SQLite connection pool
     /// * `docker` - Docker manager for container operations
     /// * `agent_config` - Agent configuration
+    /// * `git_service` - Optional Git service for automated commits and PRs
     pub fn new(
         pool: Arc<Pool<Sqlite>>,
         docker: Arc<DockerManager>,
         agent_config: AgentConfig,
+        git_service: Option<Arc<GitService>>,
     ) -> Self {
         Self {
             pool,
             docker,
+            git_service,
             agent_config,
         }
     }
@@ -239,9 +244,32 @@ impl LoopExecutor {
             // Find next pending task
             let next_task = task_repo.find_next_pending(loop_id).await?;
 
-            // Exit if no more tasks
+            // Exit if no more tasks and create PR if Git is configured
             if next_task.is_none() {
                 info!("No more pending tasks for loop {}", loop_id);
+
+                if let Some(git_service) = &self.git_service
+                    && let Some(_git_repo_url) = &current_loop.git_repo_url
+                {
+                    info!("Loop completed - creating PR for Git integration");
+                    let pr_title = format!(
+                        "Ralph Loop {} - {} Iterations Complete",
+                        loop_id, current_loop.current_iteration
+                    );
+                    let pr_body = format!(
+                        "Ralph Loop Manager automatically generated this PR.\n\nLoop: {}\nTotal Iterations: {}\nStatus: Completed",
+                        loop_id, current_loop.current_iteration
+                    );
+                    match git_service.create_pr(&pr_title, &pr_body).await {
+                        Ok(pr_url) => {
+                            info!("PR created successfully: {}", pr_url);
+                        }
+                        Err(e) => {
+                            error!("Failed to create PR: {:?}", e);
+                        }
+                    }
+                }
+
                 self.stop(loop_id).await?;
                 return Ok(());
             }
@@ -306,6 +334,12 @@ impl LoopExecutor {
     /// writes output to /workspace/task.md, and returns iteration_id.
     /// Also auto-creates tasks from LLM suggestions if present.
     ///
+    /// If loop has `git_repo_url` configured, automatically:
+    /// - Creates branch with pattern substitution ({loop_id}, {timestamp})
+    /// - Stages all generated files
+    /// - Commits with message: "Ralph Loop {loop_id} - Iteration {iter_num} - Task {task_title}"
+    /// - Pushes to remote
+    ///
     /// # Arguments
     /// * `task` - Task to execute
     ///
@@ -338,6 +372,29 @@ impl LoopExecutor {
             .container_id
             .as_ref()
             .context("Loop has no associated container")?;
+
+        if let Some(git_service) = &self.git_service
+            && let Some(_git_repo_url) = &loop_.git_repo_url
+            && loop_.current_iteration == 0
+        {
+            let timestamp = Utc::now().format("%Y%m%d%H%M%S").to_string();
+            let branch_name = loop_
+                .git_branch_pattern
+                .replace("{loop_id}", &task.loop_id)
+                .replace("{timestamp}", &timestamp);
+
+            info!("Creating Git branch: {}", branch_name);
+            git_service
+                .create_branch(&branch_name)
+                .await
+                .context("Failed to create Git branch")?;
+
+            info!("Checking out branch: {}", branch_name);
+            git_service
+                .checkout(&branch_name)
+                .await
+                .context("Failed to checkout Git branch")?;
+        }
 
         let iteration = ralph_models::Iteration::new(
             task.loop_id.clone(),
@@ -378,6 +435,38 @@ impl LoopExecutor {
         ctx.write_file("/workspace/task.md", &result.content)
             .await
             .context("Failed to write task output to /workspace/task.md")?;
+
+        if let Some(git_service) = &self.git_service
+            && let Some(_git_repo_url) = &loop_.git_repo_url
+        {
+            info!("Staging all changes in Git repository");
+            git_service
+                .stage_all()
+                .await
+                .context("Failed to stage files in Git")?;
+
+            let commit_message = format!(
+                "Ralph Loop {} - Iteration {} - Task {}",
+                task.loop_id,
+                loop_.current_iteration + 1,
+                task.title
+            );
+            info!("Committing changes: {}", commit_message);
+            git_service
+                .commit(&commit_message)
+                .await
+                .context("Failed to commit changes to Git")?;
+
+            let current_branch = git_service
+                .current_branch()
+                .await
+                .context("Failed to get current Git branch")?;
+            info!("Pushing branch: {}", current_branch);
+            git_service
+                .push("origin", &current_branch)
+                .await
+                .context("Failed to push changes to Git remote")?;
+        }
 
         iteration_repo
             .update_status(
