@@ -13,6 +13,7 @@ use crate::handlers::{
 };
 use crate::middleware::{
     auth::auth_middleware,
+    csrf::{CsrfTokenStore, csrf_middleware},
     rate_limit::{create_rate_limiter_from_env, rate_limit_middleware},
 };
 use axum::http::{HeaderName, HeaderValue, Method};
@@ -65,6 +66,7 @@ pub fn create_router(state: AppState) -> Router {
             rate_limiter,
             rate_limit_middleware,
         ))
+        .layer(Extension(state.csrf_store.clone()))
         .layer(Extension(state.session_store.clone()))
         .layer(cors)
         .with_state(state)
@@ -106,6 +108,7 @@ fn protected_routes() -> Router<AppState> {
         .route("/api/loops/{id}/stop", post(stop_loop))
         .route("/api/loops/{id}/tasks", get(list_tasks).post(create_task))
         .route("/api/tasks/{id}", get(get_task).delete(delete_task))
+        .route_layer(axum::middleware::from_fn(csrf_middleware))
         .route_layer(axum::middleware::from_fn(auth_middleware))
 }
 
@@ -293,6 +296,7 @@ mod integration_tests {
         let user_repo = ralph_repositories::UserRepository::new(pool.clone());
         let auth_service = AuthService::new(user_repo);
         let session_store = SessionStore::new();
+        let csrf_store = CsrfTokenStore::new();
         let loop_repository = LoopRepository::new(pool.clone());
         let task_repository = TaskRepository::new(pool.clone());
         let docker = Arc::new(ralph_services::DockerManager::new());
@@ -302,6 +306,7 @@ mod integration_tests {
         AppState::new(
             auth_service,
             session_store.clone(),
+            csrf_store,
             loop_repository,
             task_repository,
             loop_executor,
