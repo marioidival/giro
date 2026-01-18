@@ -242,6 +242,61 @@ impl DockerManager {
             .await
             .context("Failed to list containers")
     }
+
+    /// Clean up orphaned containers on startup
+    ///
+    /// Removes containers with "ralph-" prefix that are in stopped or exited state.
+    /// Running containers are not affected.
+    ///
+    /// # Returns
+    /// Number of containers cleaned up
+    pub async fn cleanup_orphaned_containers(&self) -> Result<usize> {
+        info!("Starting orphaned container cleanup");
+
+        let containers = self.list_containers(true).await?;
+        let mut cleaned_count = 0;
+
+        for container in containers {
+            let container_id = container.id.as_deref().unwrap_or("");
+            let default_name = String::new();
+            let container_name = container
+                .names
+                .as_ref()
+                .and_then(|names| names.first())
+                .unwrap_or(&default_name);
+
+            if !container_name.starts_with("/ralph-") {
+                continue;
+            }
+
+            let is_stopped_or_exited = container
+                .state
+                .as_deref()
+                .map(|state| state == "exited" || state == "dead")
+                .unwrap_or(false);
+
+            if is_stopped_or_exited {
+                info!(
+                    "Cleaning up orphaned container {} ({})",
+                    container_name, container_id
+                );
+                if let Err(e) = self.remove(container_id, true, true).await {
+                    warn!("Failed to remove container {}: {:?}", container_id, e);
+                } else {
+                    cleaned_count += 1;
+                    info!("Successfully cleaned up container {}", container_id);
+                }
+            } else {
+                debug!(
+                    "Skipping running container {} ({})",
+                    container_name, container_id
+                );
+            }
+        }
+
+        info!("Cleanup complete: {} containers removed", cleaned_count);
+        Ok(cleaned_count)
+    }
 }
 
 #[cfg(test)]
@@ -653,6 +708,81 @@ mod integration_tests {
         let result = manager.inspect_container(&container_id).await;
         assert!(result.is_err(), "Container should not exist after removal");
 
+        drop(temp_dir);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires Docker daemon"]
+    async fn test_cleanup_orphaned_containers_removes_stopped() -> Result<()> {
+        if !docker_available() {
+            warn!("Docker not available, skipping test");
+            return Ok(());
+        }
+
+        let manager = DockerManager::new();
+        let (temp_dir, prd_path, task_path, repo_path) = setup_test_files().await?;
+
+        let container_id = manager
+            .create_container(
+                "alpine:latest",
+                prd_path.to_str().unwrap(),
+                task_path.to_str().unwrap(),
+                repo_path.to_str().unwrap(),
+                Some("ralph-orphaned-test"),
+            )
+            .await?;
+
+        manager.start(&container_id).await?;
+        manager.stop(&container_id, Some(10)).await?;
+
+        let cleaned_count = manager.cleanup_orphaned_containers().await?;
+        assert_eq!(cleaned_count, 1, "Should clean up one orphaned container");
+
+        let result = manager.inspect_container(&container_id).await;
+        assert!(result.is_err(), "Orphaned container should be removed");
+
+        drop(temp_dir);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore = "Requires Docker daemon"]
+    async fn test_cleanup_orphaned_containers_skips_running() -> Result<()> {
+        if !docker_available() {
+            warn!("Docker not available, skipping test");
+            return Ok(());
+        }
+
+        let manager = DockerManager::new();
+        let (temp_dir, prd_path, task_path, repo_path) = setup_test_files().await?;
+
+        let container_id = manager
+            .create_container(
+                "alpine:latest",
+                prd_path.to_str().unwrap(),
+                task_path.to_str().unwrap(),
+                repo_path.to_str().unwrap(),
+                Some("ralph-running-test"),
+            )
+            .await?;
+
+        manager.start(&container_id).await?;
+
+        let cleaned_count = manager.cleanup_orphaned_containers().await?;
+        assert_eq!(cleaned_count, 0, "Should not clean up running containers");
+
+        let inspect = manager.inspect_container(&container_id).await?;
+        let running = inspect
+            .state
+            .and_then(|s| s.running)
+            .ok_or_else(|| anyhow::anyhow!("No state info"))?;
+        assert!(running, "Running container should still exist");
+
+        manager.stop(&container_id, Some(10)).await?;
+        manager.remove(&container_id, true, true).await?;
         drop(temp_dir);
 
         Ok(())
