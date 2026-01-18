@@ -1778,6 +1778,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "sqlx",
  "tokio",
  "tokio-test",
  "tower",

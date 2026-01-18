@@ -402,6 +402,23 @@ impl LoopRepository {
 
         Ok(result.rows_affected())
     }
+
+    /// Get a reference to the underlying SqlitePool
+    ///
+    /// # Returns
+    /// Reference to the SQLite connection pool
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use ralph_repositories::loop_::LoopRepository;
+    /// # async fn example(repo: LoopRepository) {
+    /// let pool = repo.pool();
+    /// // Use pool for queries
+    /// # }
+    /// ```
+    pub fn pool(&self) -> &Pool<Sqlite> {
+        &self.pool
+    }
 }
 
 #[cfg(test)]

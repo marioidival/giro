@@ -1,8 +1,10 @@
 pub mod auth;
+pub mod health;
 pub mod loops;
 pub mod tasks;
 
 pub use auth::{AppState, login, logout, register};
+pub use health::{HealthResponse, health_check};
 pub use loops::{
     create_loop, delete_loop, get_loop, list_loops, pause_loop, resume_loop, start_loop, stop_loop,
 };
