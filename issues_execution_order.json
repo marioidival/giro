@@ -542,7 +542,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/src/router.rs` (part 1)",
-      "commit_message": "`feat: add HTTP router with auth routes`"
+      "commit_message": "`feat: add HTTP router with auth routes`",
+      "status": "done"
     },
     {
       "issue_number": 54,
