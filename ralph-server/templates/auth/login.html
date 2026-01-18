@@ -2,63 +2,55 @@
 
 {% block title %}Login - Ralph Loop Manager{% endblock %}
 
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+{% endblock %}
+
 {% block content %}
-<div class="max-w-md mx-auto">
-    <div class="bg-white rounded-lg shadow-md p-8">
-        <h1 class="text-2xl font-bold text-gray-900 mb-6 text-center">Login</h1>
-
-        <form
-            action="/api/auth/login"
-            method="post"
-            hx-post="/api/auth/login"
-            hx-swap="outerHTML"
-            hx-target="body"
-            class="space-y-6"
-        >
+<div class="min-h-[calc(100vh-8rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+        <div>
+            <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+                Sign in to your account
+            </h2>
+            <p class="mt-2 text-center text-sm text-gray-600">
+                Or <a href="/register" class="font-medium text-indigo-600 hover:text-indigo-500">create a new account</a>
+            </p>
+        </div>
+        <form class="mt-8 space-y-6" hx-post="/api/auth/login" hx-swap="none">
             <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-
-            <div>
-                <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
-                    Username
-                </label>
-                <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Enter your username"
-                >
-            </div>
-
-            <div>
-                <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
-                    Password
-                </label>
-                <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    required
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Enter your password"
-                >
+            <div class="rounded-md shadow-sm -space-y-px">
+                <div>
+                    <label for="username" class="sr-only">Username</label>
+                    <input
+                        id="username"
+                        name="username"
+                        type="text"
+                        required
+                        class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                        placeholder="Username"
+                    >
+                </div>
+                <div>
+                    <label for="password" class="sr-only">Password</label>
+                    <input
+                        id="password"
+                        name="password"
+                        type="password"
+                        required
+                        class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                        placeholder="Password"
+                    >
+                </div>
             </div>
 
             <div>
                 <button
                     type="submit"
-                    class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                 >
-                    Sign In
+                    Sign in
                 </button>
-            </div>
-
-            <div class="text-center text-sm text-gray-600">
-                Don't have an account?
-                <a href="/register" class="font-medium text-indigo-600 hover:text-indigo-500">
-                    Register here
-                </a>
             </div>
         </form>
     </div>

@@ -6,8 +6,8 @@ use crate::handlers::{
     auth::{AppState, login, logout, register},
     health_check,
     loops::{
-        create_loop, delete_loop, get_loop, list_loops, list_loops_page, pause_loop, resume_loop,
-        start_loop, stop_loop,
+        create_loop, delete_loop, get_loop, list_loops, list_loops_page, new_loop_form, pause_loop,
+        resume_loop, start_loop, stop_loop,
     },
     tasks::{create_task, delete_task, get_task, list_tasks},
 };
@@ -85,6 +85,7 @@ pub fn create_router(state: AppState) -> Router {
 /// # Protected Routes
 /// ## Loops
 /// - `GET /loops` - Render loop list page (HTML)
+/// - `GET /loops/new` - Render loop creation form (HTML)
 /// - `GET /api/loops` - List all loops for the authenticated user
 /// - `POST /api/loops` - Create a new loop
 /// - `GET /api/loops/:id` - Get a specific loop
@@ -102,6 +103,7 @@ pub fn create_router(state: AppState) -> Router {
 fn protected_routes() -> Router<AppState> {
     Router::new()
         .route("/loops", get(list_loops_page))
+        .route("/loops/new", get(new_loop_form))
         .route("/api/loops", get(list_loops).post(create_loop))
         .route("/api/loops/{id}", get(get_loop).delete(delete_loop))
         .route("/api/loops/{id}/start", post(start_loop))
@@ -327,6 +329,7 @@ mod integration_tests {
 
         let test_routes = vec![
             ("/loops", Method::GET),
+            ("/loops/new", Method::GET),
             ("/api/loops", Method::GET),
             ("/api/loops", Method::POST),
             ("/api/loops/test-id", Method::GET),
@@ -464,6 +467,7 @@ mod integration_tests {
 
         let test_cases = vec![
             ("/loops", Method::GET),
+            ("/loops/new", Method::GET),
             ("/api/loops", Method::GET),
             ("/api/loops", Method::POST),
             ("/api/loops/test-id", Method::GET),

@@ -65,10 +65,11 @@ fn test_login_template_has_tailwind_classes() {
 #[test]
 fn test_register_template_renders_with_csrf_token() {
     let csrf_token = "test-csrf-token-67890".to_string();
+    let empty_errors: &[String] = &[];
     let template = RegisterTemplate {
         logged_in: false,
         csrf_token: csrf_token.clone(),
-        errors: Vec::new(),
+        errors: empty_errors,
     };
 
     let result = template.render();
@@ -103,16 +104,17 @@ fn test_register_template_renders_with_csrf_token() {
 
 #[test]
 fn test_register_template_displays_validation_errors() {
-    let errors = vec![
+    let errors_vec = vec![
         "Username already exists".to_string(),
         "Invalid email format".to_string(),
         "Password too short".to_string(),
     ];
+    let errors: &[String] = &errors_vec;
 
     let template = RegisterTemplate {
         logged_in: false,
         csrf_token: "test-token".to_string(),
-        errors: errors.clone(),
+        errors,
     };
 
     let html = template.render().unwrap();
@@ -126,7 +128,7 @@ fn test_register_template_displays_validation_errors() {
         "Should display error header"
     );
 
-    for error in errors {
+    for error in errors_vec {
         assert!(
             html.contains(&error),
             "Should display specific error: {}",
@@ -137,10 +139,11 @@ fn test_register_template_displays_validation_errors() {
 
 #[test]
 fn test_register_template_no_errors() {
+    let empty_errors: &[String] = &[];
     let template = RegisterTemplate {
         logged_in: false,
         csrf_token: "test-token".to_string(),
-        errors: Vec::new(),
+        errors: empty_errors,
     };
 
     let html = template.render().unwrap();
@@ -184,7 +187,7 @@ fn test_register_template_has_proper_form_attributes() {
     let template = RegisterTemplate {
         logged_in: false,
         csrf_token: "test-token".to_string(),
-        errors: Vec::new(),
+        errors: &[],
     };
 
     let html = template.render().unwrap();
@@ -244,7 +247,7 @@ fn test_register_template_has_required_attributes() {
     let template = RegisterTemplate {
         logged_in: false,
         csrf_token: "test-token".to_string(),
-        errors: Vec::new(),
+        errors: &[],
     };
 
     let html = template.render().unwrap();
@@ -280,7 +283,7 @@ fn test_login_and_register_use_tailwind_consistently() {
     let register_template = RegisterTemplate {
         logged_in: false,
         csrf_token: "test-token".to_string(),
-        errors: Vec::new(),
+        errors: &[],
     };
 
     let login_html = login_template.render().unwrap();

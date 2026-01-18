@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::handlers::auth::AppState;
 use crate::middleware::csrf::CsrfToken;
-use crate::templates::LoopListTemplate;
+use crate::templates::{LoopFormTemplate, LoopListTemplate};
 use crate::validation::validate_loop_name;
 
 /// Query parameters for listing loops with pagination.
@@ -259,6 +259,42 @@ pub async fn list_loops_page(
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Html(format!("Failed to retrieve loops: {}", e)),
+        ),
+    }
+}
+
+/// Handles rendering the loop creation form (HTML).
+///
+/// This endpoint:
+/// 1. Extracts user_id from auth middleware
+/// 2. Checks if user is logged in
+/// 3. Generates CSRF token
+/// 4. Renders the loop creation form template
+///
+/// # Arguments
+/// * `state` - The application state containing loop repository and CSRF store
+/// * `user_id` - The authenticated user's ID (from auth middleware)
+///
+/// # Returns
+/// * `200 OK` with HTML form on success
+/// * `500 Internal Server Error` for server errors
+pub async fn new_loop_form(
+    State(_state): State<AppState>,
+    Extension(user_id): Extension<String>,
+) -> (StatusCode, Html<String>) {
+    let logged_in = !user_id.is_empty();
+    let csrf_token = CsrfToken::generate().to_string();
+
+    let template = LoopFormTemplate {
+        logged_in,
+        csrf_token,
+    };
+
+    match template.render() {
+        Ok(html) => (StatusCode::OK, Html(html)),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Html(format!("Failed to render template: {}", e)),
         ),
     }
 }

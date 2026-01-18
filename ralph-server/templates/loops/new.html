@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}New Loop - Ralph Loop Manager{% endblock %}
+
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <div class="md:flex md:items-center md:justify-between mb-6">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                Create New Loop
+            </h2>
+        </div>
+        <div class="mt-4 flex md:mt-0 md:ml-4">
+            <a
+                href="/loops"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+                Cancel
+            </a>
+        </div>
+    </div>
+
+    <form hx-post="/api/loops" hx-swap="outerHTML">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+        <div class="space-y-6">
+            <!-- Basic Information -->
+            <div class="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Basic Information</h3>
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-6">
+                        <label for="name" class="block text-sm font-medium text-gray-700">
+                            Loop Name <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            name="name"
+                            id="name"
+                            required
+                            maxlength="100"
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                            placeholder="My Awesome Loop"
+                        >
+                    </div>
+
+                    <div class="sm:col-span-6">
+                        <label for="description" class="block text-sm font-medium text-gray-700">
+                            Description
+                        </label>
+                        <textarea
+                            name="description"
+                            id="description"
+                            rows="2"
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                            placeholder="Optional description of what this loop does..."
+                        ></textarea>
+                    </div>
+
+                    <div class="sm:col-span-6">
+                        <label for="prd" class="block text-sm font-medium text-gray-700">
+                            PRD (Product Requirements Document) <span class="text-red-500">*</span>
+                        </label>
+                        <textarea
+                            name="prd"
+                            id="prd"
+                            required
+                            rows="10"
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border border-gray-300 rounded-md font-mono text-sm"
+                            placeholder="# Project Title
+
+## Requirements
+- Requirement 1
+- Requirement 2
+
+## Process
+1. Step 1
+2. Step 2
+
+## Constraints
+- Constraint 1
+- Constraint 2"
+                        ></textarea>
+                        <p class="mt-2 text-sm text-gray-500">
+                            The PRD defines the project context and remains constant during the loop execution.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- LLM Configuration -->
+            <div class="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">LLM Configuration</h3>
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-3">
+                        <label for="provider" class="block text-sm font-medium text-gray-700">
+                            Provider <span class="text-red-500">*</span>
+                        </label>
+                        <select
+                            name="provider"
+                            id="provider"
+                            required
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        >
+                            <option value="claude">Claude (Anthropic)</option>
+                            <option value="openai">OpenAI (GPT-4)</option>
+                            <option value="mock">Mock (for testing)</option>
+                        </select>
+                    </div>
+
+                    <div class="sm:col-span-3">
+                        <label for="model" class="block text-sm font-medium text-gray-700">
+                            Model <span class="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="text"
+                            name="model"
+                            id="model"
+                            required
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                            placeholder="claude-3-opus-20240229"
+                        >
+                        <p class="mt-1 text-sm text-gray-500">
+                            Claude: claude-3-opus-20240229, claude-3-sonnet-20240229 | OpenAI: gpt-4, gpt-4-turbo
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Docker Configuration -->
+            <div class="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Docker Configuration</h3>
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-4">
+                        <label for="docker_image" class="block text-sm font-medium text-gray-700">
+                            Docker Image
+                        </label>
+                        <input
+                            type="text"
+                            name="docker_image"
+                            id="docker_image"
+                            value="ralph-loop-manager:latest"
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        >
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label for="cpu_limit" class="block text-sm font-medium text-gray-700">
+                            CPU Limit
+                        </label>
+                        <input
+                            type="number"
+                            name="cpu_limit"
+                            id="cpu_limit"
+                            value="1"
+                            min="0.5"
+                            max="4"
+                            step="0.5"
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        >
+                        <p class="mt-1 text-sm text-gray-500">vCPUs (0.5 - 4)</p>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label for="memory_limit" class="block text-sm font-medium text-gray-700">
+                            Memory Limit
+                        </label>
+                        <input
+                            type="number"
+                            name="memory_limit"
+                            id="memory_limit"
+                            value="1024"
+                            min="256"
+                            max="8192"
+                            step="256"
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        >
+                        <p class="mt-1 text-sm text-gray-500">MB (256 - 8192)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Execution Configuration -->
+            <div class="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Execution Configuration</h3>
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-2">
+                        <label for="max_iterations" class="block text-sm font-medium text-gray-700">
+                            Max Iterations
+                        </label>
+                        <input
+                            type="number"
+                            name="max_iterations"
+                            id="max_iterations"
+                            value="100"
+                            min="1"
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        >
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label for="iteration_timeout" class="block text-sm font-medium text-gray-700">
+                            Iteration Timeout
+                        </label>
+                        <input
+                            type="number"
+                            name="iteration_timeout"
+                            id="iteration_timeout"
+                            value="300"
+                            min="10"
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        >
+                        <p class="mt-1 text-sm text-gray-500">seconds</p>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label for="iteration_delay" class="block text-sm font-medium text-gray-700">
+                            Iteration Delay
+                        </label>
+                        <input
+                            type="number"
+                            name="iteration_delay"
+                            id="iteration_delay"
+                            value="0"
+                            min="0"
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        >
+                        <p class="mt-1 text-sm text-gray-500">seconds</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Git Configuration -->
+            <div class="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Git Configuration (Optional)</h3>
+                <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+                    <div class="sm:col-span-6">
+                        <label for="git_repo_url" class="block text-sm font-medium text-gray-700">
+                            Git Repository URL
+                        </label>
+                        <input
+                            type="url"
+                            name="git_repo_url"
+                            id="git_repo_url"
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                            placeholder="https://github.com/username/repo.git"
+                        >
+                    </div>
+
+                    <div class="sm:col-span-6">
+                        <label for="git_branch_pattern" class="block text-sm font-medium text-gray-700">
+                            Branch Pattern
+                        </label>
+                        <input
+                            type="text"
+                            name="git_branch_pattern"
+                            id="git_branch_pattern"
+                            value="ralph/{loop_id}/{timestamp}"
+                            class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md"
+                        >
+                        <p class="mt-1 text-sm text-gray-500">
+                            Variables: {loop_id}, {timestamp}, {iteration}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex justify-end space-x-3">
+                <a
+                    href="/loops"
+                    class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                    Cancel
+                </a>
+                <button
+                    type="submit"
+                    class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                    Create Loop
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
