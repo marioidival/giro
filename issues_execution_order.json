@@ -372,7 +372,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-services/src/docker.rs`",
-      "commit_message": "`feat: add DockerManager for container lifecycle management`"
+      "commit_message": "`feat: add DockerManager for container lifecycle management`",
+      "status": "done"
     },
     {
       "issue_number": 37,
