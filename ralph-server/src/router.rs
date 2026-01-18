@@ -58,7 +58,6 @@ pub fn create_router(state: AppState) -> Router {
 
     Router::new()
         .route("/health", get(health_check))
-        .route("/loops", get(list_loops_page))
         .route("/api/auth/register", post(register))
         .route("/api/auth/login", post(login))
         .route("/api/auth/logout", post(logout))
@@ -85,6 +84,7 @@ pub fn create_router(state: AppState) -> Router {
 ///
 /// # Protected Routes
 /// ## Loops
+/// - `GET /loops` - Render loop list page (HTML)
 /// - `GET /api/loops` - List all loops for the authenticated user
 /// - `POST /api/loops` - Create a new loop
 /// - `GET /api/loops/:id` - Get a specific loop
@@ -101,6 +101,7 @@ pub fn create_router(state: AppState) -> Router {
 /// - `DELETE /api/tasks/:id` - Delete a task
 fn protected_routes() -> Router<AppState> {
     Router::new()
+        .route("/loops", get(list_loops_page))
         .route("/api/loops", get(list_loops).post(create_loop))
         .route("/api/loops/{id}", get(get_loop).delete(delete_loop))
         .route("/api/loops/{id}/start", post(start_loop))
@@ -215,7 +216,7 @@ mod integration_tests {
         http::{Method, Request, StatusCode},
     };
     use ralph_repositories::{LoopRepository, TaskRepository};
-    use ralph_services::{AuthService, LoopExecutor};
+    use ralph_services::{AuthService, DockerManager, LoopExecutor};
     use sqlx::SqlitePool;
     use std::sync::Arc;
     use tower::ServiceExt;
@@ -308,7 +309,7 @@ mod integration_tests {
 
         let broadcast_manager = crate::websocket::BroadcastManager::new();
 
-        let state = AppState::new(
+        AppState::new(
             auth_service,
             session_store.clone(),
             csrf_store,
@@ -316,7 +317,7 @@ mod integration_tests {
             task_repository,
             loop_executor,
             broadcast_manager,
-        );
+        )
     }
 
     #[tokio::test]
@@ -325,6 +326,7 @@ mod integration_tests {
         let app = create_router(state);
 
         let test_routes = vec![
+            ("/loops", Method::GET),
             ("/api/loops", Method::GET),
             ("/api/loops", Method::POST),
             ("/api/loops/test-id", Method::GET),
@@ -461,6 +463,7 @@ mod integration_tests {
         let session_id = state.session_store.create_session(user_id).await;
 
         let test_cases = vec![
+            ("/loops", Method::GET),
             ("/api/loops", Method::GET),
             ("/api/loops", Method::POST),
             ("/api/loops/test-id", Method::GET),
