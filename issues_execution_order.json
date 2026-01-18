@@ -645,6 +645,16 @@
       "files": "`templates/loops/show.html`, `ralph-server/src/templates/mod.rs`, `ralph-server/src/handlers/loops.rs`, `ralph-server/src/router.rs`",
       "commit_message": "`feat: add loop detail template with WebSocket`",
       "status": "done"
+    },
+    {
+      "issue_number": 64,
+      "task_id": "3.21",
+      "title": "3.21: Create Task Form Template",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`ralph-server/templates/tasks/new.html`, `ralph-server/tests/templates_tasks.rs`, `ralph-server/src/handlers/tasks.rs`, `ralph-server/src/router.rs`, `ralph-server/src/templates/mod.rs`",
+      "commit_message": "`feat: add task form template and handler`",
+      "status": "done"
     }
   ],
   "issues": [
@@ -656,15 +666,6 @@
       "sprint_number": 3,
       "files": "`templates/loops/new.html`",
       "commit_message": "`feat: add loop creation form template`"
-    },
-    {
-      "issue_number": 64,
-      "task_id": "3.21",
-      "title": "3.21: Create Task Form Template",
-      "sprint": "Sprint 3: HTTP Server & Frontend",
-      "sprint_number": 3,
-      "files": "`templates/tasks/new.html`",
-      "commit_message": "`feat: add task creation form template`"
     },
     {
       "issue_number": 65,
