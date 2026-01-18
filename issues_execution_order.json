@@ -423,7 +423,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-services/src/executor.rs` (part 5)",
-      "commit_message": "`feat: auto-create tasks from LLM suggestions`"
+      "commit_message": "`feat: auto-create tasks from LLM suggestions`",
+      "status": "done"
     },
     {
       "issue_number": 42,
