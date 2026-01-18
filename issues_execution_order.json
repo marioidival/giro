@@ -113,7 +113,8 @@
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`migrations/004_iterations_files.sql`",
-      "commit_message": "`feat: add iterations and files tables migration`"
+      "commit_message": "`feat: add iterations and files tables migration`",
+      "status": "done"
     },
     {
       "issue_number": 11,
