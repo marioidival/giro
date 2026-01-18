@@ -1769,6 +1769,7 @@ dependencies = [
  "askama",
  "axum",
  "dotenvy",
+ "hyper",
  "ralph-agent",
  "ralph-models",
  "ralph-repositories",
@@ -1779,6 +1780,7 @@ dependencies = [
  "tokio-test",
  "tower",
  "tower-http",
+ "uuid",
  "validator",
 ]
 
