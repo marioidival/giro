@@ -433,7 +433,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-services/src/docker.rs` (update)",
-      "commit_message": "`feat: add container cleanup on startup`"
+      "commit_message": "`feat: add container cleanup on startup`",
+      "status": "done"
     },
     {
       "issue_number": 43,
