@@ -11,7 +11,10 @@ use crate::handlers::{
     },
     tasks::{create_task, delete_task, get_task, list_tasks},
 };
-use crate::middleware::auth::auth_middleware;
+use crate::middleware::{
+    auth::auth_middleware,
+    rate_limit::{create_rate_limiter_from_env, rate_limit_middleware},
+};
 use axum::http::{HeaderName, HeaderValue, Method};
 use axum::{
     Extension, Router,
@@ -50,12 +53,18 @@ pub fn create_router(state: AppState) -> Router {
 
     let cors = build_cors_layer(&cors_origins);
 
+    let rate_limiter = create_rate_limiter_from_env();
+
     Router::new()
         .route("/health", get(health_check))
         .route("/api/auth/register", post(register))
         .route("/api/auth/login", post(login))
         .route("/api/auth/logout", post(logout))
         .merge(protected_routes())
+        .layer(axum::middleware::from_fn_with_state(
+            rate_limiter,
+            rate_limit_middleware,
+        ))
         .layer(Extension(state.session_store.clone()))
         .layer(cors)
         .with_state(state)
