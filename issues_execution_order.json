@@ -352,7 +352,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-services/src/auth.rs` (part 1)",
-      "commit_message": "`feat: add password hashing and verification utilities`"
+      "commit_message": "`feat: add password hashing and verification utilities`",
+      "status": "done"
     },
     {
       "issue_number": 35,
