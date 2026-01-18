@@ -201,7 +201,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-agent/Cargo.toml`, `ralph-agent/src/lib.rs`",
-      "commit_message": "`feat: create ralph-agent crate structure`"
+      "commit_message": "`feat: create ralph-agent crate structure`",
+      "status": "done"
     },
     {
       "issue_number": 20,
@@ -210,7 +211,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-agent/src/provider.rs` (part 1)",
-      "commit_message": "`feat: add LLM provider trait and data structures`"
+      "commit_message": "`feat: add LLM provider trait and data structures`",
+      "status": "done"
     },
     {
       "issue_number": 21,
