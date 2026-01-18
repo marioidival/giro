@@ -562,7 +562,8 @@
       "sprint": "Sprint 3: HTTP Server & Frontend",
       "sprint_number": 3,
       "files": "`ralph-server/src/main.rs`",
-      "commit_message": "`feat: add HTTP server main binary`"
+      "commit_message": "`feat: add HTTP server main binary`",
+      "status": "done"
     },
     {
       "issue_number": 56,
