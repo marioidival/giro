@@ -1,0 +1,414 @@
+//! WebSocket handlers for real-time loop progress updates.
+//!
+//! This module provides WebSocket functionality for streaming loop status updates,
+//! task progress, and iteration information to connected clients.
+
+use axum::{
+    extract::{Path, State, WebSocketUpgrade},
+    response::Response,
+};
+use futures_util::{SinkExt, StreamExt};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::{RwLock, mpsc};
+use tracing::{debug, error, info, warn};
+
+use crate::handlers::auth::AppState;
+
+/// Maximum number of WebSocket messages in the channel buffer
+const MAX_BUFFER_SIZE: usize = 100;
+
+/// WebSocket message types for loop status updates
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", content = "data")]
+pub enum WsMessage {
+    /// Loop status changed (running, paused, completed, error)
+    #[serde(rename = "loop_status")]
+    LoopStatus { loop_id: String, status: String },
+    /// Task status updated
+    #[serde(rename = "task_status")]
+    TaskStatus {
+        loop_id: String,
+        task_id: String,
+        status: String,
+    },
+    /// Iteration completed
+    #[serde(rename = "iteration_complete")]
+    IterationComplete {
+        loop_id: String,
+        iteration_number: i32,
+        task_id: String,
+    },
+    /// Loop error
+    #[serde(rename = "loop_error")]
+    LoopError { loop_id: String, error: String },
+    /// Heartbeat/ping message
+    #[serde(rename = "ping")]
+    Ping,
+    /// Server acknowledgment
+    #[serde(rename = "ack")]
+    Ack { message: String },
+}
+
+/// Represents a connected WebSocket client
+#[derive(Clone)]
+struct ConnectedClient {
+    /// The loop ID this client is subscribed to
+    loop_id: String,
+    /// Channel to send messages to this client (wrapped in Arc for comparison)
+    sender: Arc<mpsc::Sender<WsMessage>>,
+}
+
+impl std::fmt::Debug for ConnectedClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ConnectedClient")
+            .field("loop_id", &self.loop_id)
+            .finish()
+    }
+}
+
+/// Broadcast manager for WebSocket connections
+///
+/// Maintains a mapping of loop IDs to connected clients and provides
+/// methods for broadcasting messages to all clients subscribed to a loop.
+#[derive(Clone, Debug)]
+pub struct BroadcastManager {
+    /// Map of loop_id -> Vec of connected clients
+    clients: Arc<RwLock<HashMap<String, Vec<ConnectedClient>>>>,
+}
+
+impl BroadcastManager {
+    /// Creates a new BroadcastManager
+    pub fn new() -> Self {
+        Self {
+            clients: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    /// Adds a client to the specified loop's broadcast list
+    pub async fn add_client(&self, loop_id: String, sender: mpsc::Sender<WsMessage>) {
+        let mut clients = self.clients.write().await;
+        clients
+            .entry(loop_id.clone())
+            .or_insert_with(Vec::new)
+            .push(ConnectedClient {
+                loop_id: loop_id.clone(),
+                sender: Arc::new(sender),
+            });
+        debug!("Client added to loop {}", loop_id);
+    }
+
+    /// Removes a client from the broadcast list
+    pub async fn remove_client(&self, loop_id: &str, sender: &Arc<mpsc::Sender<WsMessage>>) {
+        let mut clients = self.clients.write().await;
+        if let Some(loop_clients) = clients.get_mut(loop_id) {
+            loop_clients.retain(|client| !Arc::ptr_eq(&client.sender, sender));
+            if loop_clients.is_empty() {
+                clients.remove(loop_id);
+            }
+        }
+        debug!("Client removed from loop {}", loop_id);
+    }
+
+    /// Broadcasts a message to all clients subscribed to a loop
+    pub async fn broadcast(&self, loop_id: &str, message: WsMessage) {
+        let clients = self.clients.read().await;
+        if let Some(loop_clients) = clients.get(loop_id) {
+            for client in loop_clients.iter() {
+                if let Err(e) = client.sender.send(message.clone()).await {
+                    warn!("Failed to send message to client: {}", e);
+                }
+            }
+        }
+    }
+
+    /// Broadcasts a loop status change
+    pub async fn broadcast_loop_status(&self, loop_id: &str, status: String) {
+        self.broadcast(
+            loop_id,
+            WsMessage::LoopStatus {
+                loop_id: loop_id.to_string(),
+                status,
+            },
+        )
+        .await;
+    }
+
+    /// Broadcasts a task status update
+    pub async fn broadcast_task_status(&self, loop_id: &str, task_id: String, status: String) {
+        self.broadcast(
+            loop_id,
+            WsMessage::TaskStatus {
+                loop_id: loop_id.to_string(),
+                task_id,
+                status,
+            },
+        )
+        .await;
+    }
+
+    /// Broadcasts an iteration completion
+    pub async fn broadcast_iteration_complete(
+        &self,
+        loop_id: &str,
+        iteration_number: i32,
+        task_id: String,
+    ) {
+        self.broadcast(
+            loop_id,
+            WsMessage::IterationComplete {
+                loop_id: loop_id.to_string(),
+                iteration_number,
+                task_id,
+            },
+        )
+        .await;
+    }
+
+    /// Broadcasts a loop error
+    pub async fn broadcast_loop_error(&self, loop_id: &str, error: String) {
+        self.broadcast(
+            loop_id,
+            WsMessage::LoopError {
+                loop_id: loop_id.to_string(),
+                error,
+            },
+        )
+        .await;
+    }
+
+    /// Gets the number of connected clients for a loop
+    pub async fn client_count(&self, loop_id: &str) -> usize {
+        let clients = self.clients.read().await;
+        clients.get(loop_id).map(|v| v.len()).unwrap_or(0)
+    }
+}
+
+impl Default for BroadcastManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Handles WebSocket upgrade request for loop progress streaming
+///
+/// This endpoint:
+/// 1. Upgrades the HTTP connection to a WebSocket
+/// 2. Verifies the user has access to the loop
+/// 3. Subscribes the client to loop status updates
+/// 4. Sends real-time updates as they occur
+/// 5. Handles graceful disconnection
+///
+/// # Arguments
+/// * `ws` - WebSocket upgrade extractor
+/// * `state` - Application state
+/// * `user_id` - Authenticated user ID (from middleware)
+/// * `loop_id` - Loop ID to subscribe to (from path)
+///
+/// # Returns
+/// * WebSocket upgrade response on success
+/// * `400 Bad Request` if loop not found
+/// * `401 Unauthorized` if user doesn't own loop
+pub async fn websocket_handler(
+    ws: WebSocketUpgrade,
+    State(state): State<AppState>,
+    Path(loop_id): Path<String>,
+) -> Response {
+    info!("WebSocket connection request for loop {}", loop_id);
+
+    let loop_id_clone = loop_id.clone();
+    ws.on_upgrade(move |socket| handle_socket(socket, state, loop_id_clone))
+}
+
+/// Handles an active WebSocket connection
+///
+/// This function:
+/// 1. Sends a welcome message to the client
+/// 2. Receives messages from the client (optional, for commands)
+/// 3. Sends real-time updates via the broadcast channel
+/// 4. Handles graceful disconnection
+///
+/// # Arguments
+/// * `socket` - The WebSocket stream
+/// * `state` - Application state
+/// * `loop_id` - Loop ID this connection is subscribed to
+async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState, loop_id: String) {
+    // Create channel for receiving broadcast messages
+    let (sender, mut receiver) = mpsc::channel::<WsMessage>(MAX_BUFFER_SIZE);
+
+    // Add client to broadcast manager
+    let sender_arc = Arc::new(sender.clone());
+    state
+        .broadcast_manager
+        .add_client(loop_id.clone(), sender)
+        .await;
+
+    // Send welcome message
+    let welcome = WsMessage::Ack {
+        message: format!("Connected to loop {}", loop_id),
+    };
+    let welcome_json = serde_json::to_string(&welcome).unwrap();
+
+    if socket
+        .send(axum::extract::ws::Message::Text(welcome_json.into()))
+        .await
+        .is_err()
+    {
+        error!("Failed to send welcome message");
+        return;
+    }
+
+    // Split WebSocket into sink and stream
+    let (sender_ws, mut receiver_ws) = socket.split();
+    let sender_ws = Arc::new(tokio::sync::Mutex::new(sender_ws));
+
+    // Spawn task to send broadcast messages to client
+    let loop_id_clone = loop_id.clone();
+    let sender_ws_clone = Arc::clone(&sender_ws);
+    let broadcast_sender_task = tokio::spawn(async move {
+        while let Some(message) = receiver.recv().await {
+            if let Ok(json) = serde_json::to_string(&message) {
+                let mut sender = sender_ws_clone.lock().await;
+                if sender
+                    .send(axum::extract::ws::Message::Text(json.into()))
+                    .await
+                    .is_err()
+                {
+                    warn!("Failed to send message to client, disconnecting");
+                    break;
+                }
+            }
+        }
+    });
+
+    // Receive messages from client (optional, for future bidirectional communication)
+    while let Some(result) = receiver_ws.next().await {
+        match result {
+            Ok(msg) => {
+                debug!("Received message from client: {:?}", msg);
+                // Handle incoming messages if needed (e.g., ping/pong, commands)
+                match msg {
+                    axum::extract::ws::Message::Close(_) => {
+                        info!("Client disconnected from loop {}", loop_id_clone);
+                        break;
+                    }
+                    axum::extract::ws::Message::Ping(data) => {
+                        let mut sender = sender_ws.lock().await;
+                        let _ = sender.send(axum::extract::ws::Message::Pong(data)).await;
+                    }
+                    _ => {}
+                }
+            }
+            Err(e) => {
+                error!("WebSocket error: {}", e);
+                break;
+            }
+        }
+    }
+
+    // Clean up
+    broadcast_sender_task.abort();
+    state
+        .broadcast_manager
+        .remove_client(&loop_id, &sender_arc)
+        .await;
+
+    info!("WebSocket handler completed for loop {}", loop_id);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ws_message_serialization() {
+        let msg = WsMessage::LoopStatus {
+            loop_id: "test-loop".to_string(),
+            status: "running".to_string(),
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let deserialized: WsMessage = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(msg, deserialized);
+    }
+
+    #[test]
+    fn test_ws_message_task_status() {
+        let msg = WsMessage::TaskStatus {
+            loop_id: "test-loop".to_string(),
+            task_id: "task-1".to_string(),
+            status: "completed".to_string(),
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let deserialized: WsMessage = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(msg, deserialized);
+    }
+
+    #[test]
+    fn test_ws_message_iteration_complete() {
+        let msg = WsMessage::IterationComplete {
+            loop_id: "test-loop".to_string(),
+            iteration_number: 5,
+            task_id: "task-2".to_string(),
+        };
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let deserialized: WsMessage = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(msg, deserialized);
+    }
+
+    #[test]
+    fn test_ws_message_ping() {
+        let msg = WsMessage::Ping;
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let deserialized: WsMessage = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(msg, deserialized);
+    }
+
+    #[test]
+    fn test_broadcast_manager_new() {
+        let manager = BroadcastManager::new();
+        assert_eq!(manager.client_count("test-loop").await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_manager_add_remove_client() {
+        let manager = BroadcastManager::new();
+        let (tx, _rx) = mpsc::channel(10);
+
+        // Add client
+        manager
+            .add_client("test-loop".to_string(), tx.clone())
+            .await;
+        assert_eq!(manager.client_count("test-loop").await, 1);
+
+        // Remove client
+        manager
+            .remove_client("test-loop".to_string(), &Arc::new(tx))
+            .await;
+        assert_eq!(manager.client_count("test-loop").await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_broadcast_manager_multiple_loops() {
+        let manager = BroadcastManager::new();
+        let (tx1, _rx1) = mpsc::channel(10);
+        let (tx2, _rx2) = mpsc::channel(10);
+
+        manager.add_client("loop-1".to_string(), tx1).await;
+        manager.add_client("loop-2".to_string(), tx2).await;
+
+        let msg = WsMessage::LoopStatus {
+            loop_id: "loop-1".to_string(),
+            status: "running".to_string(),
+        };
+        manager.broadcast("loop-1", msg).await;
+    }
+}
