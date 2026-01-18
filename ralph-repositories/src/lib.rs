@@ -6,6 +6,8 @@ pub mod task;
 pub mod user;
 
 pub use database::Database;
+pub use file::FileRepository;
 pub use iteration::IterationRepository;
 pub use loop_::LoopRepository;
 pub use task::TaskRepository;
+pub use user::UserRepository;
