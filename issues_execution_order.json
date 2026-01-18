@@ -333,7 +333,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-agent/src/lib.rs`",
-      "commit_message": "`refactor: export all agent components from ralph-agent`"
+      "commit_message": "`refactor: export all agent components from ralph-agent`",
+      "status": "done"
     },
     {
       "issue_number": 33,
