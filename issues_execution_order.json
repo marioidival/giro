@@ -166,14 +166,15 @@
       "commit_message": "`feat: add TaskRepository with optimized queries`",
       "status": "done"
     },
-    {
+     {
       "issue_number": 16,
       "task_id": "1.13",
       "title": "1.13: Implement IterationRepository",
       "sprint": "Sprint 1: Foundation - Workspace & Database",
       "sprint_number": 1,
       "files": "`ralph-repositories/src/iteration.rs`",
-      "commit_message": "`feat: add IterationRepository with queries`"
+      "commit_message": "`feat: add IterationRepository with queries`",
+      "status": "done"
     },
     {
       "issue_number": 17,
