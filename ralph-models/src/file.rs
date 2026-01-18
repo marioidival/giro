@@ -26,7 +26,7 @@ impl File {
     /// # Example
     /// ```
     /// # use ralph_models::File;
-    /// let file = File::new("iteration-id-123", "/workspace/src/main.rs");
+    /// let file = File::new("iteration-id-123".to_string(), "/workspace/src/main.rs".to_string());
     /// assert_eq!(file.iteration_id, "iteration-id-123");
     /// assert_eq!(file.path, "/workspace/src/main.rs");
     /// ```
