@@ -1,102 +1,102 @@
 # Middleware Layer
 
-## Propósito
+## Purpose
 
-Este módulo fornece a camada de middleware HTTP para o Ralph Loop Manager. Responsável por proteger endpoints, gerenciar sessões, prevenir ataques CSRF e limitar taxa de requisições.
+This module provides the HTTP middleware layer for the Ralph Loop Manager. Responsible for protecting endpoints, managing sessions, preventing CSRF attacks, and limiting request rates.
 
-**O que esta área faz:**
-- **Autenticação**: Validação de sessões e injeção de `user_id` em handlers
-- **Proteção CSRF**: Geração e validação de tokens para prevenir ataques de cross-site request forgery
-- **Rate Limiting**: Limite de requisições por IP usando algoritmo token bucket
-- **Ordering e Stacking**: Ordem correta de aplicação de middlewares na pipeline HTTP
+**What this area does:**
+- **Authentication**: Session validation and `user_id` injection in handlers
+- **CSRF Protection**: Token generation and validation to prevent cross-site request forgery attacks
+- **Rate Limiting**: Request limit per IP using token bucket algorithm
+- **Ordering and Stacking**: Correct application order of middlewares in HTTP pipeline
 
-**O que esta área NÃO faz:**
-- Não gerencia lógica de negócio de autenticação (isso é responsabilidade de `ralph-services::AuthService`)
-- Não acessa banco de dados (usa storage em memória para sessions/tokens)
-- Não implementa login/logout (isso é responsabilidade dos handlers)
-- Não faz autorização baseada em roles (apenas verifica autenticação)
+**What this area does NOT do:**
+- Does not manage authentication business logic (this is responsibility of `ralph-services::AuthService`)
+- Does not access database (uses in-memory storage for sessions/tokens)
+- Does not implement login/logout (this is responsibility of handlers)
+- Does not do role-based authorization (only checks authentication)
 
-## Estrutura
+## Structure
 
 ```
 ralph-server/src/middleware/
-├── mod.rs           # Re-exports públicos
+├── mod.rs           # Public re-exports
 ├── auth.rs          # SessionStore, auth_middleware, require_auth
 ├── csrf.rs          # CsrfTokenStore, CsrfToken, csrf_middleware
 └── rate_limit.rs    # RateLimiter, TokenBucket, rate_limit_middleware
 ```
 
-### Componentes
+### Components
 
 #### Auth Middleware (`auth.rs`)
-- `SessionStore`: Storage em memória (`Arc<RwLock<HashMap>>`) mapeando `session_id` → `user_id`
-- `auth_middleware`: Função de middleware que valida sessão e injeta `user_id` em extensions
-- `require_auth`: Helper function para extrair `user_id` de request
-- `extract_session_id`: Extrai session ID de headers (`session` ou `authorization`)
+- `SessionStore`: In-memory storage (`Arc<RwLock<HashMap>>`) mapping `session_id` → `user_id`
+- `auth_middleware`: Middleware function that validates session and injects `user_id` in extensions
+- `require_auth`: Helper function to extract `user_id` from request
+- `extract_session_id`: Extracts session ID from headers (`session` or `authorization`)
 
 #### CSRF Middleware (`csrf.rs`)
-- `CsrfTokenStore`: Storage em memória para tokens CSRF por sessão
-- `CsrfToken`: Wrapper type-safe com implementações `Display`, `AsRef`, `From<String>`
-- `csrf_middleware`: Gera/valida tokens e retorna 403 em falha
-- `is_safe_method`: Verifica se método HTTP é seguro (GET, HEAD, OPTIONS, TRACE)
-- `extract_csrf_token`: Extrai token de headers (`x-csrf-token` ou `csrf-token`)
+- `CsrfTokenStore`: In-memory storage for CSRF tokens per session
+- `CsrfToken`: Type-safe wrapper with `Display`, `AsRef`, `From<String>` implementations
+- `csrf_middleware`: Generates/validates tokens and returns 403 on failure
+- `is_safe_method`: Checks if HTTP method is safe (GET, HEAD, OPTIONS, TRACE)
+- `extract_csrf_token`: Extracts token from headers (`x-csrf-token` or `csrf-token`)
 
 #### Rate Limiting Middleware (`rate_limit.rs`)
-- `RateLimiter`: Gerencia buckets de tokens por cliente IP
-- `TokenBucket`: Implementação do algoritmo token bucket com refill automático
-- `RateLimitConfig`: Configuração carregada de environment variables
-- `rate_limit_middleware`: Verifica limites e retorna 429 com `Retry-After` header
-- `extract_client_ip`: Extrai IP de headers (`x-forwarded-for` ou `x-real-ip`)
+- `RateLimiter`: Manages token buckets per client IP
+- `TokenBucket`: Token bucket algorithm implementation with automatic refill
+- `RateLimitConfig`: Configuration loaded from environment variables
+- `rate_limit_middleware`: Checks limits and returns 429 with `Retry-After` header
+- `extract_client_ip`: Extracts IP from headers (`x-forwarded-for` or `x-real-ip`)
 
-## Invariantes Críticos
+## Critical Invariants
 
-### Ordem de Middleware
+### Middleware Order
 
-A ordem de aplicação dos middlewares é **CRÍTICA** e NUNCA deve ser alterada:
+The middleware application order is **CRITICAL** and should NEVER be altered:
 
 ```rust
-// ✅ CERTO - Ordem correta em router.rs
+// ✅ CORRECT - Correct order in router.rs
 Router::new()
     .merge(protected_routes())
     .layer(axum::middleware::from_fn_with_state(
         rate_limiter,
-        rate_limit_middleware,  // 1. Rate limiting (primeiro, outermost)
+        rate_limit_middleware,  // 1. Rate limiting (first, outermost)
     ))
-    .layer(Extension(state.csrf_store.clone()))  // 2. Injeção de stores
+    .layer(Extension(state.csrf_store.clone()))  // 2. Injection of stores
     .layer(Extension(state.session_store.clone()))
     .layer(cors)  // 3. CORS
     .with_state(state)
 
-// Para rotas protegidas:
+// For protected routes:
 fn protected_routes() -> Router<AppState> {
     Router::new()
         .route("/api/loops", post(create_loop))
         .route_layer(axum::middleware::from_fn(csrf_middleware))  // 4. CSRF validation
-        .route_layer(axum::middleware::from_fn(auth_middleware))  // 5. Auth (último, innermost)
+        .route_layer(axum::middleware::from_fn(auth_middleware))  // 5. Auth (last, innermost)
 }
 ```
 
-**Por que essa ordem é crítica:**
-1. **Rate limiting primeiro**: Protege contra abuso antes de qualquer processamento
-2. **Stores injetados**: Auth e CSRF middlewares precisam das stores disponíveis
-3. **Auth antes de CSRF**: Precisa saber quem é o usuário para validar token da sessão dele
-4. **CSRF no protected routes**: Apenas rotas que modificam estado precisam de validação
+**Why this order is critical:**
+1. **Rate limiting first**: Protects against abuse before any processing
+2. **Stores injected**: Auth and CSRF middlewares need stores available
+3. **Auth before CSRF**: Need to know which user to validate their session's token
+4. **CSRF on protected routes**: Only routes that modify state need validation
 
 ### SessionStore Thread-Safety
 
-**TODOS** os métodos de `SessionStore` devem ser `async` e usar `RwLock`:
+**ALL** `SessionStore` methods must be `async` and use `RwLock`:
 
 ```rust
-// ✅ CERTO - Thread-safe
+// ✅ CORRECT - Thread-safe
 impl SessionStore {
     pub async fn validate_session(&self, session_id: &str) -> Option<String> {
-        let sessions = self.sessions.read().await;  // Lock de leitura
+        let sessions = self.sessions.read().await;  // Read lock
         sessions.get(session_id).cloned()
     }
 
     pub async fn create_session(&self, user_id: String) -> String {
         let session_id = Uuid::new_v4().to_string();
-        let mut sessions = self.sessions.write().await;  // Lock de escrita
+        let mut sessions = self.sessions.write().await;  // Write lock
         sessions.insert(session_id.clone(), user_id);
         session_id
     }
@@ -105,18 +105,18 @@ impl SessionStore {
 
 ### CSRF Token per Session
 
-**CADA** sessão deve ter **EXATAMENTE UM** token CSRF:
+**EACH** session must have **EXACTLY ONE** CSRF token:
 
 ```rust
-// ❌ ERRADO - Múltiplos tokens por sessão
+// ❌ WRONG - Multiple tokens per session
 csrf_store.store(&session_id, "token-1").await;
-csrf_store.store(&session_id, "token-2").await;  // Sobrescreve token-1
+csrf_store.store(&session_id, "token-2").await;  // Overwrites token-1
 
-// ✅ CERTO - Um token por sessão, reutilizado
+// ✅ CORRECT - One token per session, reused
 if let Some(existing) = csrf_store.get(&session_id).await {
-    // Usa token existente
+    // Use existing token
 } else {
-    // Gera novo token e armazena
+    // Generate new token and store
     let token = CsrfToken::generate();
     csrf_store.store(&session_id, token.as_str()).await;
 }
@@ -124,11 +124,11 @@ if let Some(existing) = csrf_store.get(&session_id).await {
 
 ### Safe Methods vs Unsafe Methods
 
-**MÉTODOS SEGUROS** (NÃO requerem CSRF): `GET`, `HEAD`, `OPTIONS`, `TRACE`
-**MÉTODOS INSEGUROS** (REQUEREM CSRF): `POST`, `PUT`, `DELETE`, `PATCH`
+**SAFE METHODS** (DO NOT require CSRF): `GET`, `HEAD`, `OPTIONS`, `TRACE`
+**UNSAFE METHODS** (REQUIRE CSRF): `POST`, `PUT`, `DELETE`, `PATCH`
 
 ```rust
-// ✅ CERTO - CSRF middleware implementa essa lógica
+// ✅ CORRECT - CSRF middleware implements this logic
 fn is_safe_method(method: &axum::http::Method) -> bool {
     matches!(
         *method,
@@ -139,19 +139,19 @@ fn is_safe_method(method: &axum::http::Method) -> bool {
     )
 }
 
-// No middleware:
+// In middleware:
 if is_safe_method(request.method()) {
-    return Ok(next.run(request).await);  // Passa sem validação
+    return Ok(next.run(request).await);  // Passes without validation
 }
-// Valida token para métodos inseguros
+// Validate token for unsafe methods
 ```
 
 ### Token Bucket Refill
 
-**O refill de tokens DEVE ser contínuo e baseado no tempo decorrido**:
+**Token refill MUST be continuous and based on elapsed time:**
 
 ```rust
-// ✅ CERTO - Refill contínuo
+// ✅ CORRECT - Continuous refill
 impl TokenBucket {
     fn refill(&mut self) {
         let elapsed = self.last_refill.elapsed();
@@ -162,21 +162,21 @@ impl TokenBucket {
     }
 }
 
-// ❌ ERRADO - Refill fixo (perde requests entre refills)
+// ❌ WRONG - Fixed refill (loses requests between refills)
 fn refill_fixed(&mut self) {
-    // Refill acontece apenas quando chamado explicitamente
-    self.tokens = self.capacity;  // Perde tokens que deveriam ser adicionados gradualmente
+    // Refill happens only when explicitly called
+    self.tokens = self.capacity;  // Loses tokens that should be added gradually
 }
 ```
 
 ### IP Extraction Order
 
-**A ordem de extração de IP é PREDEFINIDA**:
+**IP extraction order is PREDEFINED:**
 
 ```rust
-// ✅ CERTO - Ordem correta
+// ✅ CORRECT - Correct order
 fn extract_client_ip(headers: &HeaderMap) -> String {
-    // 1. Verifica x-forwarded-for (proxy/CDN)
+    // 1. Check x-forwarded-for (proxy/CDN)
     if let Some(forwarded_for) = headers.get("x-forwarded-for")
         && let Ok(forwarded_str) = forwarded_for.to_str()
         && let Some(client_ip) = forwarded_str.split(',').next()
@@ -184,7 +184,7 @@ fn extract_client_ip(headers: &HeaderMap) -> String {
         return client_ip.trim().to_string();
     }
 
-    // 2. Verifica x-real-ip (nginx, apache)
+    // 2. Check x-real-ip (nginx, apache)
     if let Some(real_ip) = headers.get("x-real-ip")
         && let Ok(real_ip_str) = real_ip.to_str()
     {
@@ -196,15 +196,15 @@ fn extract_client_ip(headers: &HeaderMap) -> String {
 }
 ```
 
-**Por que essa ordem:**
-- `x-forwarded-for` é o header padrão para proxies/CDNs
-- Primeiro IP na lista é sempre o IP original do cliente
-- `x-real-ip` é fallback para outros reverse proxies
-- "unknown" evita bloquear todas as requisições se IP não for identificado
+**Why this order:**
+- `x-forwarded-for` is the standard header for proxies/CDNs
+- First IP in list is always the original client IP
+- `x-real-ip` is fallback for other reverse proxies
+- "unknown" avoids blocking all requests if IP is not identified
 
-## Padrões de Uso
+## Usage Patterns
 
-### Como Adicionar Middleware no Router
+### Adding Middleware to Router
 
 ```rust
 use crate::middleware::{
@@ -220,7 +220,7 @@ pub fn create_router(state: AppState) -> Router {
         .merge(protected_routes())
         .layer(axum::middleware::from_fn_with_state(
             rate_limiter,
-            rate_limit_middleware,  // Aplicado em TODAS as rotas
+            rate_limit_middleware,  // Applied to ALL routes
         ))
         .layer(Extension(state.csrf_store.clone()))
         .layer(Extension(state.session_store.clone()))
@@ -229,23 +229,23 @@ pub fn create_router(state: AppState) -> Router {
 }
 ```
 
-### Como Criar Rotas Protegidas
+### Creating Protected Routes
 
 ```rust
 fn protected_routes() -> Router<AppState> {
     Router::new()
-        // Rotas protegidas (requerem auth + CSRF)
+        // Protected routes (require auth + CSRF)
         .route("/api/loops", get(list_loops).post(create_loop))
         .route("/api/loops/{id}", get(get_loop).delete(delete_loop))
         .route("/api/loops/{id}/start", post(start_loop))
         .route("/api/loops/{id}/tasks", get(list_tasks).post(create_task))
-        // MIDDLEWARE ORDEM CRÍTICA (inverter = não funciona)
-        .route_layer(axum::middleware::from_fn(csrf_middleware))  // CSRF primeiro
-        .route_layer(axum::middleware::from_fn(auth_middleware))   // Auth depois
+        // MIDDLEWARE ORDER CRITICAL (inverting = doesn't work)
+        .route_layer(axum::middleware::from_fn(csrf_middleware))  // CSRF first
+        .route_layer(axum::middleware::from_fn(auth_middleware))   // Auth after
 }
 ```
 
-### Como Usar Auth em Handlers
+### Using Auth in Handlers
 
 ```rust
 use axum::{Extension, Json};
@@ -253,35 +253,35 @@ use crate::handlers::auth::AppState;
 
 pub async fn create_loop(
     State(state): State<AppState>,
-    Extension(user_id): Extension<String>,  // Injetado pelo auth_middleware
+    Extension(user_id): Extension<String>,  // Injected by auth_middleware
     Json(payload): Json<CreateLoop>,
 ) -> (StatusCode, Json<CreateLoopResponse>) {
-    // user_id está disponível automaticamente
-    // Se não autenticado, request não chega aqui (retorna 401 no middleware)
+    // user_id is automatically available
+    // If not authenticated, request won't reach here (returns 401 in middleware)
 
-    // Atribuir ownership do loop ao usuário autenticado
+    // Assign loop ownership to authenticated user
     let mut create_data = payload;
     create_data.owner_id = user_id;
 
-    // ... restante da lógica
+    // ... rest of logic
 }
 ```
 
-### Como Usar CSRF Token em Handlers
+### Using CSRF Token in Handlers
 
 ```rust
 use axum::Extension;
 use crate::middleware::csrf::CsrfToken;
 
 pub async fn new_loop_form(
-    Extension(csrf_token): Extension<CsrfToken>,  // Injetado pelo csrf_middleware
+    Extension(csrf_token): Extension<CsrfToken>,  // Injected by csrf_middleware
 ) -> (StatusCode, Html<String>) {
-    let token = csrf_token.as_str();  // Converte para &str
+    let token = csrf_token.as_str();  // Converts to &str
 
-    // Template recebe o token
+    // Template receives the token
     let template = NewLoopTemplate {
         csrf_token: token.to_string(),
-        // ... outros campos
+        // ... other fields
     };
 
     match template.render() {
@@ -291,7 +291,7 @@ pub async fn new_loop_form(
 }
 ```
 
-### Como Enviar CSRF Token do Frontend
+### Sending CSRF Token from Frontend
 
 **Form HTML:**
 ```html
@@ -309,7 +309,7 @@ fetch("/api/loops", {
     method: "POST",
     headers: {
         "Content-Type": "application/json",
-        "x-csrf-token": csrfToken,  // Token obtido de meta tag ou cookie
+        "x-csrf-token": csrfToken,  // Token obtained from meta tag or cookie
     },
     body: JSON.stringify({
         name: "My Loop",
@@ -318,18 +318,18 @@ fetch("/api/loops", {
 });
 ```
 
-### Como Configurar Rate Limiting
+### Configuring Rate Limiting
 
 ```bash
 # .env
-RATE_LIMIT=60  # requests por minuto (default: 100)
+RATE_LIMIT=60  # requests per minute (default: 100)
 ```
 
 ```rust
-// Rate limiting é automático quando aplicado no router
-// Retorno 429 com header Retry-After quando limit excedido
+// Rate limiting is automatic when applied to router
+// Returns 429 with Retry-After header when limit exceeded
 
-// Cliente pode implementar retry automático:
+// Client can implement automatic retry:
 fetch("/api/loops")
     .then(response => {
         if (response.status === 429) {
@@ -339,20 +339,20 @@ fetch("/api/loops")
     });
 ```
 
-### Como Gerenciar Sessões
+### Managing Sessions
 
 ```rust
-// No login handler
+// In login handler
 pub async fn login(
     State(state): State<AppState>,
     Json(payload): Json<LoginRequest>,
 ) -> (StatusCode, Json<LoginResponse>) {
     match state.auth_service.authenticate(&payload.username, &payload.password).await {
         Ok(user) => {
-            // Criar sessão
+            // Create session
             let session_id = state.session_store.create_session(user.id.clone()).await;
 
-            // Gerar token CSRF para a sessão
+            // Generate CSRF token for the session
             let csrf_token = CsrfToken::generate();
             state.csrf_store.store(&session_id, csrf_token.as_str()).await;
 
@@ -367,16 +367,16 @@ pub async fn login(
     }
 }
 
-// No logout handler
+// In logout handler
 pub async fn logout(
     State(state): State<AppState>,
     Extension(user_id): Extension<String>,
 ) -> (StatusCode, Json<LogoutResponse>) {
-    // Extrair session_id de headers
+    // Extract session_id from headers
     if let Some(session_id) = extract_session_id(request.headers()) {
-        // Deletar sessão
+        // Delete session
         state.session_store.delete_session(&session_id).await;
-        // Deletar token CSRF
+        // Delete CSRF token
         state.csrf_store.delete(&session_id).await;
     }
 
@@ -384,31 +384,31 @@ pub async fn logout(
 }
 ```
 
-## Anti-padrões
+## Anti-patterns
 
-### NUNCA FAZER
+### NEVER DO
 
-**1. Inverter ordem de middleware**
+**1. Inverting middleware order**
 ```rust
-// ❌ ERRADO - CSRF antes de Auth (session_id não disponível)
+// ❌ WRONG - CSRF before Auth (session_id not available)
 .route_layer(axum::middleware::from_fn(csrf_middleware))
 .route_layer(axum::middleware::from_fn(auth_middleware))
 
-// ✅ CERTO - Auth primeiro, CSRF depois
+// ✅ CORRECT - Auth first, CSRF after
 .route_layer(axum::middleware::from_fn(csrf_middleware))
 .route_layer(axum::middleware::from_fn(auth_middleware))
 ```
 
-**2. CSRF em métodos seguros**
+**2. CSRF in safe methods**
 ```rust
-// ❌ ERRADO - Validando CSRF em GET
+// ❌ WRONG - Validating CSRF in GET
 if let Some(provided) = extract_csrf_token(request.headers()) {
     if !csrf_store.validate(&session_id, &provided).await {
         return Err(StatusCode::FORBIDDEN);
     }
 }
 
-// ✅ CERTO - Apenas valida métodos inseguros
+// ✅ CORRECT - Only validates unsafe methods
 if !is_safe_method(request.method()) {
     if let Some(provided) = extract_csrf_token(request.headers()) {
         if !csrf_store.validate(&session_id, &provided).await {
@@ -418,39 +418,39 @@ if !is_safe_method(request.method()) {
 }
 ```
 
-**3. Bloquear requisições sem IP identificado**
+**3. Blocking requests without identified IP**
 ```rust
-// ❌ ERRADO - Bloqueia todos sem headers de IP
+// ❌ WRONG - Blocks all without IP headers
 if extract_client_ip(headers) == "unknown" {
     return Err(StatusCode::FORBIDDEN);
 }
 
-// ✅ CERTO - Usa "unknown" como bucket compartilhado
-let client_ip = extract_client_ip(headers);  // Retorna "unknown" se não encontrado
-// Rate limiting continua funcionando (todos os "unknown" compartilham bucket)
+// ✅ CORRECT - Use "unknown" as shared bucket
+let client_ip = extract_client_ip(headers);  // Returns "unknown" if not found
+// Rate limiting continues working (all "unknown" share bucket)
 ```
 
-**4. Sync locks em async context**
+**4. Sync locks in async context**
 ```rust
-// ❌ ERRADO - Mutex pode bloquear thread
+// ❌ WRONG - Mutex can block thread
 use std::sync::Mutex;
 pub struct SessionStore {
-    sessions: Arc<Mutex<HashMap<String, String>>>,  // Mutex bloqueia thread
+    sessions: Arc<Mutex<HashMap<String, String>>,  // Mutex blocks thread
 }
 
-// ✅ CERTO - RwLock permite múltiplas leituras
+// ✅ CORRECT - RwLock allows multiple reads
 use tokio::sync::RwLock;
 pub struct SessionStore {
-    sessions: Arc<RwLock<HashMap<String, String>>>,  // RwLock é async-friendly
+    sessions: Arc<RwLock<HashMap<String, String>>,  // RwLock is async-friendly
 }
 ```
 
-**5. Ignorar Retry-After header**
+**5. Ignoring Retry-After header**
 ```rust
-// ❌ ERRADO - Retorna 429 sem Retry-After
+// ❌ WRONG - Returns 429 without Retry-After
 Err(StatusCode::TOO_MANY_REQUESTS)
 
-// ✅ CERTO - Inclui Retry-After header
+// ✅ CORRECT - Includes Retry-After header
 let mut response = (StatusCode::TOO_MANY_REQUESTS, ()).into_response();
 response.headers_mut().insert(
     header::RETRY_AFTER,
@@ -459,12 +459,12 @@ response.headers_mut().insert(
 Ok(response)
 ```
 
-**6. Token generation não-cryptográfico**
+**6. Non-cryptographic token generation**
 ```rust
-// ❌ ERRADO - Previsível
+// ❌ WRONG - Predictable
 let token = format!("csrf-{}", std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis());
 
-// ✅ CERTO - Criptograficamente seguro
+// ✅ CORRECT - Cryptographically secure
 let mut rng = rand::thread_rng();
 let token: String = (0..32)
     .map(|_| {
@@ -474,25 +474,25 @@ let token: String = (0..32)
     .collect();
 ```
 
-**7. Verificar user_id manualmente**
+**7. Manually verifying user_id**
 ```rust
-// ❌ ERRADO - Duplicando lógica do auth middleware
+// ❌ WRONG - Duplicating auth middleware logic
 pub async fn handler(request: Request) -> ... {
     if let Some(session_id) = extract_session_id(request.headers()) {
         if let Some(user_id) = session_store.validate_session(&session_id).await {
-            // Usar user_id...
+            // Use user_id...
         }
     }
 }
 
-// ✅ CERTO - Usar Extension injetado pelo middleware
+// ✅ CORRECT - Use Extension injected by middleware
 pub async fn handler(Extension(user_id): Extension<String>) -> ... {
-    // user_id já está validado pelo auth_middleware
-    // Se não autenticado, request nem chega aqui
+    // user_id is already validated by auth_middleware
+    // If not authenticated, request won't reach here
 }
 ```
 
-## Padrões Específicos
+## Specific Patterns
 
 ### Request Flow
 
@@ -502,48 +502,48 @@ Client Request
 ┌─────────────────────────────────────┐
 │  Router Middleware (outermost)     │
 ├─────────────────────────────────────┤
-│ 1. Rate Limiting                  │ ← Primeiro (IP level)
-│    - Extrai IP de headers         │
-│    - Verifica bucket de tokens     │
-│    - Retorna 429 se limitado      │
+│ 1. Rate Limiting                  │ ← First (IP level)
+│    - Extracts IP from headers         │
+│    - Checks token bucket            │
+│    - Returns 429 if limited      │
 └──────────────┬────────────────────┘
-               │ Passa
+               │ Passes
                ▼
-┌─────────────────────────────────────┐
+┌───────────────────────────────────────────────┐
 │ 2. Extension Injections           │
 │    - SessionStore                 │
 │    - CsrfTokenStore               │
 └──────────────┬────────────────────┘
-               │ Passa
+               │ Passes
                ▼
-┌─────────────────────────────────────┐
+┌───────────────────────────────────────────────┐
 │ 3. CORS                          │
-│    - Verifica origins             │
-│    - Adiciona headers CORS        │
+│    - Checks origins                 │
+│    - Adds CORS headers             │
 └──────────────┬────────────────────┘
-               │ Passa
+               │ Passes
                ▼
-┌─────────────────────────────────────┐
-│ 4. Auth Middleware (protected)   │ ← Para rotas protegidas
-│    - Extrai session_id de headers │
-│    - Valida com SessionStore      │
-│    - Injeta user_id em extensions │
-│    - Retorna 401 se inválido       │
+┌─────────────────────────────────────────────┐
+│ 4. Auth Middleware (protected)   │ ← For protected routes
+│    - Extracts session_id from headers │
+│    - Validates with SessionStore      │
+│    - Injects user_id in extensions │
+│    - Returns 401 if invalid       │
 └──────────────┬────────────────────┘
-               │ Passa
+               │ Passes
                ▼
-┌─────────────────────────────────────┐
-│ 5. CSRF Middleware (protected)   │ ← Para rotas protegidas
-│    - Verifica método HTTP         │
-│    - Se seguro: passa            │
-│    - Se inseguro: valida token   │
-│    - Injeta CSRF token           │
-│    - Retorna 403 se inválido      │
+┌─────────────────────────────────────────────┐
+│ 5. CSRF Middleware (protected)   │ ← For protected routes
+│    - Checks HTTP method             │
+│    - If safe: passes            │
+│    - If unsafe: validates token   │
+│    - Injects CSRF token           │
+│    - Returns 403 if invalid      │
 └──────────────┬────────────────────┘
-               │ Passa
+               │ Passes
                ▼
-┌─────────────────────────────────────┐
-│  Handler                         │ ← Processamento final
+┌─────────────────────────────────────────────┐
+│  Handler                         │ ← Final processing
 │    - Extension(user_id)           │
 │    - Extension(csrf_token)        │
 │    - State(state)                │
@@ -556,31 +556,31 @@ Client Request
 ```
 1. Login
    ↓
-2. AuthService.authenticate() valida credentials
+2. AuthService.authenticate() validates credentials
    ↓
 3. SessionStore.create_session(user_id)
-   - Gera session_id (UUID v4)
-   - Armazena: session_id → user_id
+   - Generates session_id (UUID v4)
+   - Stores: session_id → user_id
    ↓
 4. CsrfToken.generate()
-   - Gera token criptograficamente seguro
+   - Generates cryptographically secure token
    ↓
 5. CsrfTokenStore.store(session_id, csrf_token)
-   - Armazena: session_id → csrf_token
+   - Stores: session_id → csrf_token
    ↓
-6. Retorna para cliente: { session_id, csrf_token }
+6. Returns to client: { session_id, csrf_token }
    ↓
-7. Cliente envia session_id em headers ("session" ou "authorization")
+7. Client sends session_id in headers ("session" or "authorization")
    ↓
-8. Cliente envia csrf_token em headers ("x-csrf-token")
+8. Client sends csrf_token in headers ("x-csrf-token")
    ↓
-9. Request chega ao servidor
+9. Request arrives at server
    ↓
-10. Auth middleware valida session_id → user_id
+10. Auth middleware validates session_id → user_id
     ↓
-11. CSRF middleware valida csrf_token → armazenado
+11. CSRF middleware validates csrf_token → stored
     ↓
-12. Handler processa com user_id disponível
+12. Handler processes with user_id available
    ↓
 13. Logout
     ↓
@@ -605,7 +605,7 @@ Request 2: Consume 1 token
 - Tokens: 98
 - Time: T + 0.5s
 
-... (consumindo tokens)
+... (consuming tokens)
 
 Request 100: Consume 1 token
 - Tokens: 0
@@ -620,7 +620,7 @@ Request 101: Rate limited!
 - Tokens: 49
 ```
 
-## Dependências
+## Dependencies
 
 ### Dependencies (Cargo.toml)
 
@@ -633,40 +633,40 @@ axum.workspace = true
 tokio.workspace = true
 
 # Utilities
-rand = "0.8"                    # Para CSRF token generation
-uuid.workspace = true           # Para session_id generation
+rand = "0.8"                    # For CSRF token generation
+uuid.workspace = true           # For session_id generation
 
 # Logging
 tracing.workspace = true
 ```
 
-### Dependencies Internas
+### Internal Dependencies
 
-Nenhuma - Middleware é um módulo self-contained que depende apenas de:
-- `axum` para extractors e tipos de middleware
-- `tokio::sync` para primitivos de concorrência
-- `std` e `rand` para utilities
+None - Middleware is a self-contained module that depends only on:
+- `axum` for extractors and middleware types
+- `tokio::sync` for concurrency primitives
+- `std` and `rand` for utilities
 
-### Downstreams (quem usa este módulo)
+### Downstreams (who uses this module)
 
-- `ralph-server/router.rs` - Configura middleware no router
-- `ralph-server/handlers/*.rs` - Usa extractors (Extension, SessionStore, CsrfToken)
+- `ralph-server/router.rs` - Configures middleware in router
+- `ralph-server/handlers/*.rs` - Uses extractors (Extension, SessionStore, CsrfToken)
 
-## Armadilhas
+## Pitfalls
 
-### Confusões Comuns
+### Common Confusions
 
 **1. Extension vs State vs Extractors**
 
 ```rust
-// Extension: dados injetados por middleware
-Extension(user_id): Extension<String>      // user_id do auth_middleware
-Extension(csrf_token): Extension<CsrfToken> // csrf_token do csrf_middleware
+// Extension: data injected by middleware
+Extension(user_id): Extension<String>      // user_id from auth_middleware
+Extension(csrf_token): Extension<CsrfToken> // csrf_token from csrf_middleware
 
-// State: application state compartilhada
-State(state): State<AppState>  // AppState configurado no router
+// State: application state shared
+State(state): State<AppState>  // AppState configured in router
 
-// Extractors: dados extraídos da request
+// Extractors: data extracted from request
 Path(id): Path<String>         // /api/loops/{id}
 Query(params): Query<ListQuery> // ?page=1&limit=10
 Json(payload): Json<CreateLoop> // Body JSON
@@ -675,149 +675,149 @@ Json(payload): Json<CreateLoop> // Body JSON
 **2. SessionStore vs CsrfTokenStore**
 
 ```rust
-// SessionStore: mapeia session_id → user_id
+// SessionStore: maps session_id → user_id
 let user_id = session_store.validate_session(&session_id).await;
 
-// CsrfTokenStore: mapeia session_id → csrf_token
+// CsrfTokenStore: maps session_id → csrf_token
 let token = csrf_store.get(&session_id).await;
 let valid = csrf_store.validate(&session_id, &provided_token).await;
 
-// Ambos são independentes mas relacionados pelo session_id
+// Both are independent but related by session_id
 ```
 
 **3. Mutex vs RwLock**
 
 ```rust
-// Mutex: apenas um "borrow" por vez (leitura OU escrita)
+// Mutex: only one "borrow" at a time (read OR write)
 use std::sync::Mutex;
 let data = Arc<Mutex<HashMap<String, String>>>;
 
-let guard = data.lock().unwrap();  // Bloqueia para leitura OU escrita
-// Mesmo leituras concorrentes esperam por outras leituras
+let guard = data.lock().unwrap();  // Blocks for read OR write
+// Even concurrent reads wait for other reads
 
-// RwLock: múltiplas leituras, escrita exclusiva
+// RwLock: multiple reads, exclusive write
 use tokio::sync::RwLock;
 let data = Arc<RwLock<HashMap<String, String>>>;
 
-let guard = data.read().await;    // Bloqueia apenas para escritas
-let mut guard = data.write().await; // Bloqueia para leituras E escritas
+let guard = data.read().await;    // Blocks only for writes
+let mut guard = data.write().await; // Blocks for reads AND writes
 ```
 
-**4. Safe methods não requerem CSRF**
+**4. Safe methods don't require CSRF**
 
 ```rust
-// ❌ ERRADO - GET precisa de CSRF
+// ❌ WRONG - GET needs CSRF
 let response = fetch("/api/loops", {
     method: "GET",
     headers: { "x-csrf-token": token }
 });
 
-// ✅ CERTO - GET não precisa de CSRF
+// ✅ CORRECT - GET doesn't need CSRF
 let response = fetch("/api/loops", {
-    method: "GET"  // CSRF middleware ignora método seguro
+    method: "GET"  // CSRF middleware ignores safe method
 });
 
-// Apenas métodos inseguros precisam:
+// Only unsafe methods need:
 let response = fetch("/api/loops", {
     method: "POST",
-    headers: { "x-csrf-token": token }  // Obrigatório
+    headers: { "x-csrf-token": token }  // Required
 });
 ```
 
-**5. Rate limiting é por IP, não por usuário**
+**5. Rate limiting is per IP, not per user**
 
 ```rust
-// Rate limiting é baseado em IP do cliente
-// Mesmo usuário autenticado com múltiplos IPs = múltiplos buckets
+// Rate limiting is based on client IP
+// Same authenticated user with multiple IPs = multiple buckets
 
-// Exemplo: usuário com IP diferente (VPN, mudança de rede)
-// Cria novo bucket de tokens, rate limit começa do zero
+// Example: user with different IP (VPN, network change)
+// Creates new token bucket, rate limit starts from zero
 
-// Para rate limiting por usuário, seria necessário armazenar user_id
-// no bucket, mas isso não é implementado atualmente
+// For rate limiting per user, you would need to store user_id
+// in the bucket, but this is not currently implemented
 ```
 
-### Comportamentos Inesperados
+### Unexpected Behaviors
 
-**1. CSRF token persiste durante sessão**
+**1. CSRF token persists during session**
 
 ```rust
-// CSRF token é gerado UMA vez por sessão e reutilizado
-// Não muda a cada request
+// CSRF token is generated ONCE per session and reused
+// Does not change with each request
 
-// Isso é correto: CSRF token deve persistir
-// Cliente deve guardar token e enviar em todas as mutations
+// This is correct: CSRF token should persist
+// Client should store token and send in all mutations
 
-// ❌ Não regenerar token a cada request
-// Isso quebraria form submissions e requisições AJAX
+// ❌ Do not regenerate token on each request
+// This would break form submissions and AJAX requests
 ```
 
-**2. Rate limiting refill é contínuo**
+**2. Rate limiting refill is continuous**
 
 ```rust
-// Tokens são adicionados continuamente, não em intervalos fixos
-// Exemplo: 60 requests/min = 1 token/segundo
+// Tokens are added continuously, not in fixed intervals
+// Example: 60 requests/min = 1 token/second
 
-// Após 30 segundos sem requests:
-// - Tokens recuperados: 30
-// - Se capacity era 100 e tinhamos 0, agora temos 30
+// After 30 seconds without requests:
+// - Tokens recovered: 30
+// - If capacity was 100 and we had 0, now we have 30
 
-// Isso é diferente de "fixed window" onde tokens são resetados
-// Token bucket permite bursts (consumir todos de uma vez, depois esperar)
+// This is different from "fixed window" where tokens are reset
+// Token bucket allows bursts (consume all at once, then wait)
 ```
 
-**3. IP extraction fallback para "unknown"**
+**3. IP extraction fallback to "unknown"**
 
 ```rust
-// Se request não tem x-forwarded-for nem x-real-ip:
-// IP é "unknown"
+// If request doesn't have x-forwarded-for or x-real-ip:
+// IP is "unknown"
 
-// Todas as requisições com "unknown" compartilham MESMO bucket
-// Isso pode limitar indevidamente se muitos clientes não têm headers
+// All requests with "unknown" share SAME bucket
+// This can limit unduly if many clients don't have headers
 
-// Em produção, configure reverse proxy (nginx, cloudflare, etc)
-// para sempre adicionar x-forwarded-for ou x-real-ip
+// In production, configure reverse proxy (nginx, cloudflare, etc)
+// to always add x-forwarded-for or x-real-ip
 ```
 
-**4. SessionStore não expira sessões automaticamente**
+**4. SessionStore doesn't expire sessions automatically**
 
 ```rust
-// Sessões NÃO expiram automaticamente
-// Persistem até serem explicitamente deletadas em logout
+// Sessions do NOT expire automatically
+// Persist until explicitly deleted in logout
 
-// Isso é uma limitação conhecida da implementação atual
-// Futuro: implementar TTL/expiry com background cleanup task
+// This is a known limitation of the current implementation
+// Future: implement TTL/expiry with background cleanup task
 
-// Para logout:
+// For logout:
 session_store.delete_session(&session_id).await;
 csrf_store.delete(&session_id).await;
 ```
 
-**5. Middleware order é outer-to-inner**
+**5. Middleware order is outer-to-inner**
 
 ```rust
-// Router layers são aplicados de fora para dentro
-// Primeiro layer aplicado = executado primeiro (outermost)
-// Último layer aplicado = executado por último (innermost)
+// Router layers are applied from outside to inside
+// First layer applied = executed first (outermost)
+// Last layer applied = executed last (innermost)
 
 Router::new()
-    .layer(middleware_A)  // Executa PRIMEIRO
-    .layer(middleware_B)  // Executa DEPOIS de A
-    .layer(middleware_C)  // Executa DEPOIS de B
-    .route_layer(middleware_D)  // Executa DEPOIS de C
-    .route_layer(middleware_E)  // Executa DEPOIS de D (último, antes do handler)
+    .layer(middleware_A)  // Executes FIRST
+    .layer(middleware_B)  // Executes AFTER A
+    .layer(middleware_C)  // Executes AFTER B
+    .route_layer(middleware_D)  // Executes AFTER C
+    .route_layer(middleware_E)  // Executes AFTER D (last, before handler)
 
-// Order de execução: A → B → C → D → E → Handler
+// Execution order: A → B → C → D → E → Handler
 ```
 
-## Downlinks (Contexto Adicional)
+## Downlinks (Additional Context)
 
-**Para entender melhor:**
-- `/AGENTS.md` - Arquitetura geral do projeto
-- `/ralph-server/AGENTS.md` - Uso de middleware em handlers e router
-- `/ralph-services/AGENTS.md` - AuthService para autenticação de credenciais
+**To understand better:**
+- `/AGENTS.md` - General project architecture
+- `/ralph-server/AGENTS.md` - Middleware usage in handlers and router
+- `/ralph-services/AGENTS.md` - AuthService for credential authentication
 
 ---
 
-**Última atualização:** 2026-01-18
-**Versão:** 1.0
+**Last updated:** 2026-01-18
+**Version:** 1.0

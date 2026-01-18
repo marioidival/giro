@@ -1,63 +1,63 @@
 # Ralph Services - Intent Layer
 
-## Propósito
+## Purpose
 
-Este crate contém a lógica de negócio central do Ralph Loop Manager. Implementa serviços que coordenam operações complexas entre repositories, LLM agents e containers Docker.
+This crate contains the core business logic of the Ralph Loop Manager. It implements services that coordinate complex operations between repositories, LLM agents, and Docker containers.
 
-**O que esta área faz:**
-- **AuthService**: Gerencia autenticação de usuários (registro, login, hashing de senha)
-- **DockerManager**: Gerencia ciclo de vida de containers Docker (criação, start, pause, stop, remove)
-- **LoopExecutor**: Orquestra execução de loops Ralph (task processing, state management, LLM integration)
-- Coordena integração entre `ralph-repositories`, `ralph-agent` e Docker
-- Aplica regras de negócio e validações
+**What this area does:**
+- **AuthService**: Manages user authentication (registration, login, password hashing)
+- **DockerManager**: Manages Docker container lifecycle (creation, start, pause, stop, remove)
+- **LoopExecutor**: Orchestrates Ralph loop execution (task processing, state management, LLM integration)
+- Coordinates integration between `ralph-repositories`, `ralph-agent`, and Docker
+- Applies business rules and validations
 
-**O que esta área NÃO faz:**
-- Não acessa banco de dados diretamente (usa `ralph-repositories`)
-- Não lida com HTTP requests/responses (isso é responsabilidade de `ralph-server`)
-- Não implementa modelos de dados (isso é responsabilidade de `ralph-models`)
-- Não contém templates ou HTML (isso é responsabilidade de `ralph-server`)
+**What this area does NOT do:**
+- Does not access database directly (uses `ralph-repositories`)
+- Does not handle HTTP requests/responses (that's `ralph-server`'s responsibility)
+- Does not implement data models (that's `ralph-models`' responsibility)
+- Does not contain templates or HTML (that's `ralph-server`'s responsibility)
 
-## Estrutura
+## Structure
 
 ```
 ralph-services/
 ├── src/
-│   ├── lib.rs       # Re-export público dos serviços
-│   ├── auth.rs      # AuthService (login, registro, password hashing)
+│   ├── lib.rs       # Public re-exports of services
+│   ├── auth.rs      # AuthService (login, registration, password hashing)
 │   ├── docker.rs    # DockerManager (container lifecycle)
-│   └── executor.rs  # LoopExecutor (orchestration de loops)
+│   └── executor.rs  # LoopExecutor (loop orchestration)
 └── Cargo.toml      # Dependencies (bcrypt, bollard, tokio, etc)
 ```
 
-## Invariantes Críticos
+## Critical Invariants
 
 ### AuthService
 
 **Password Security:**
-- **TODAS** as senhas devem ser hasheadas com bcrypt (cost 12 - DEFAULT_COST)
-- **NUNCA** armazene senhas em texto claro
-- Password validation: mínimo 8 caracteres
-- Username validation: 3-50 caracteres, apenas alfanuméricos
+- **ALL** passwords must be hashed with bcrypt (cost 12 - DEFAULT_COST)
+- **NEVER** store passwords in plain text
+- Password validation: minimum 8 characters
+- Username validation: 3-50 characters, alphanumeric only
 
 **Username Uniqueness:**
-- Username deve ser único antes de criar usuário
-- Verificar via `user_repo.find_by_username()` antes de `user_repo.create()`
+- Username must be unique before creating user
+- Verify via `user_repo.find_by_username()` before `user_repo.create()`
 
 **Login Security:**
-- **SEMPRE** use mesma mensagem de erro para "username inválido" e "senha inválida"
-- Previne enumeração de usuários (user enumeration attack)
+- **ALWAYS** use same error message for "invalid username" and "invalid password"
+- Prevents user enumeration (user enumeration attack)
 
 ### DockerManager
 
-**Resource Limits Obrigatórios:**
+**Mandatory Resource Limits:**
 ```rust
 cpu_quota = 1_000_000_000i64     // 1 CPU core
 cpu_period = 1_000_000i64        // 1ms period
 memory = 1_073_741_824i64        // 1GB (1024^3)
-memory_swap = memory               // No swap (segurança)
+memory_swap = memory               // No swap (security)
 ```
 
-**Volume Mounts Obrigatórios:**
+**Mandatory Volume Mounts:**
 ```rust
 binds = vec![
     format!("{}:/workspace/prd.md:ro", prd_path),    // Read-only
@@ -67,12 +67,12 @@ binds = vec![
 ```
 
 **Container Naming:**
-- Containers Ralph devem ter prefixo `ralph-loop-{loop_id}`
-- Facilita cleanup e identificação
+- Ralph containers must have prefix `ralph-loop-{loop_id}`
+- Facilitates cleanup and identification
 
 **Cleanup Pattern:**
-- Orphaned containers (prefixo `ralph-`, estado `exited` ou `dead`) devem ser removidos automaticamente
-- Running containers **NUNCA** são removidos durante cleanup
+- Orphaned containers (prefix `ralph-`, status `exited` or `dead`) must be removed automatically
+- Running containers are **NEVER** removed during cleanup
 
 ### LoopExecutor
 
@@ -84,23 +84,23 @@ Iteration: Running → Completed/Error
 ```
 
 **Execution Loop:**
-- Loop **NUNCA** deve ser blocking em handler HTTP
-- Use `tokio::spawn()` para execução assíncrona
-- Loop continua até: no more tasks, max_iterations, ou manual stop
+- Loop must **NEVER** be blocking in HTTP handler
+- Use `tokio::spawn()` for async execution
+- Loop continues until: no more tasks, max_iterations, or manual stop
 
 **Task Processing:**
-- Tasks são processados em ordem de priority (maior = mais prioritária)
-- LLM pode sugerir novas tasks (criadas automaticamente)
-- Task failure **NÃO** para o loop (continua com próxima task)
+- Tasks are processed in priority order (higher = more priority)
+- LLM can suggest new tasks (created automatically)
+- Task failure does **NOT** stop the loop (continues with next task)
 
 **Error Handling:**
-- Erros em tasks não críticas são logados e loop continua
-- Apenas erros fatais (sem tasks, max_iterations) param o loop
-- Container é limpo ao parar (stop + remove + volumes)
+- Errors in non-critical tasks are logged and loop continues
+- Only fatal errors (no tasks, max_iterations) stop the loop
+- Container is cleaned up when stopped (stop + remove + volumes)
 
-## Padrões de Uso
+## Usage Patterns
 
-### AuthService - Registro
+### AuthService - Registration
 
 ```rust
 use ralph_services::{AuthService, hash_password};
@@ -117,7 +117,7 @@ let create_user = CreateUser {
 };
 
 let user = auth_service.register(create_user).await?;
-// user.password_hash é bcrypt hash (NÃO é a senha original!)
+// user.password_hash is bcrypt hash (NOT the original password!)
 ```
 
 ### AuthService - Login
@@ -132,10 +132,10 @@ let login_user = LoginUser {
 };
 
 let user = auth_service.login(login_user).await?;
-// User autenticado com sucesso
+// User successfully authenticated
 ```
 
-### DockerManager - Criar Container
+### DockerManager - Create Container
 
 ```rust
 use ralph_services::DockerManager;
@@ -159,7 +159,7 @@ let container_id = docker_manager
 // Start
 docker_manager.start(&container_id).await?;
 
-// Pause (mantém container rodando mas paused)
+// Pause (keeps container running but paused)
 docker_manager.pause(&container_id).await?;
 
 // Unpause
@@ -175,7 +175,7 @@ docker_manager.remove(&container_id, true, true).await?;
 ### DockerManager - Cleanup
 
 ```rust
-// Remove orphaned containers automaticamente
+// Remove orphaned containers automatically
 let cleaned_count = docker_manager
     .cleanup_orphaned_containers()
     .await?;
@@ -197,13 +197,13 @@ let executor = LoopExecutor::new(
 );
 
 executor.start(&loop_id).await?;
-// Container criado, started, e execution_loop rodando em background
+// Container created, started, and execution_loop running in background
 ```
 
 ### LoopExecutor - Pause/Resume/Stop
 
 ```rust
-// Pause (pausa container)
+// Pause (pauses container)
 executor.pause(&loop_id).await?;
 
 // Resume (unpause + restart execution loop)
@@ -216,7 +216,7 @@ executor.stop(&loop_id).await?;
 ### LoopExecutor - Task Processing Flow
 
 ```rust
-// Execution loop (rodando em background via tokio::spawn)
+// Execution loop (running in background via tokio::spawn)
 async fn execution_loop(&self, loop_id: &str) -> Result<()> {
     loop {
         // 1. Check loop status
@@ -258,34 +258,34 @@ async fn execution_loop(&self, loop_id: &str) -> Result<()> {
 }
 ```
 
-## Anti-padrões
+## Anti-patterns
 
-### NUNCA FAZER
+### NEVER DO
 
-**1. Armazenar senha em texto claro**
+**1. Store password in plain text**
 ```rust
-// ❌ ERRADO - PERIGO DE SEGURANÇA
+// ❌ WRONG - SECURITY DANGER
 User {
     password: "password123".to_string(),
 }
 
-// ✅ CERTO - Hash bcrypt
+// ✅ CORRECT - Hash bcrypt
 let password_hash = hash_password("password123")?;
 User {
     password_hash,
 }
 ```
 
-**2. Criar container sem resource limits**
+**2. Create container without resource limits**
 ```rust
-// ❌ ERRADO - Container sem limits pode consumir todo o host
+// ❌ WRONG - Container without limits can consume entire host
 let config = Config {
     image: Some("alpine:latest".to_string()),
-    host_config: None,  // NÃO!
+    host_config: None,  // NO!
     ..
 };
 
-// ✅ CERTO - Com limits obrigatórios
+// ✅ CORRECT - With mandatory limits
 let host_config = HostConfig {
     cpu_quota: Some(1_000_000_000),
     cpu_period: Some(1_000_000),
@@ -301,35 +301,35 @@ let config = Config {
 };
 ```
 
-**3. Bloquear handler HTTP com execution_loop**
+**3. Block HTTP handler with execution_loop**
 ```rust
-// ❌ ERRADO - Handler fica bloqueado infinitamente
+// ❌ WRONG - Handler blocked indefinitely
 async fn handler(State(executor): State<LoopExecutor>) {
-    executor.execution_loop(&loop_id).await?;  // Bloqueia!
+    executor.execution_loop(&loop_id).await?;  // Blocks!
     Ok(())
 }
 
-// ✅ CERTO - Spawn em background
+// ✅ CORRECT - Spawn in background
 async fn handler(State(executor): State<LoopExecutor>) {
     tokio::spawn(async move {
         let _ = executor.execution_loop(&loop_id).await;
     });
-    Ok(())  // Handler retorna imediatamente
+    Ok(())  // Handler returns immediately
 }
 ```
 
-**4. Não fazer cleanup de containers**
+**4. Not doing cleanup of containers**
 ```rust
-// ❌ ERRADO - Container fica rodando se der erro
+// ❌ WRONG - Container keeps running if error occurs
 let container_id = docker.create_container(...).await?;
 docker.start(&container_id).await?;
-// Se der erro, container fica rodando forever!
+// If error, container runs forever!
 
-// ✅ CERTO - Cleanup pattern (manual ou via DockerManager)
+// ✅ CORRECT - Cleanup pattern (manual or via DockerManager)
 let container_id = docker.create_container(...).await?;
 docker.start(&container_id).await?;
 
-// Em caso de erro, limpa:
+// On error, cleanup:
 if let Err(e) = some_operation().await {
     docker.stop(&container_id, Some(10)).await.ok();
     docker.remove(&container_id, true, true).await.ok();
@@ -337,25 +337,25 @@ if let Err(e) = some_operation().await {
 }
 ```
 
-**5. Reveal username existence em login**
+**5. Reveal username existence in login**
 ```rust
-// ❌ ERRADO - User enumeration attack
+// ❌ WRONG - User enumeration attack
 pub async fn login(&self, username: &str, password: &str) -> Result<User> {
     let user = self.user_repo.find_by_username(username).await?;
 
     if user.is_none() {
-        bail!("Username not found");  // ❌ Vazou que username não existe
+        bail!("Username not found");  // ❌ Leaked that username doesn't exist
     }
 
     let user = user.unwrap();
     if !verify_password(password, &user.password_hash)? {
-        bail!("Invalid password");  // ❌ Mensagem diferente
+        bail!("Invalid password");  // ❌ Different message
     }
 
     Ok(user)
 }
 
-// ✅ CERTO - Mesma mensagem para ambos os casos
+// ✅ CORRECT - Same message for both cases
 pub async fn login(&self, login_user: LoginUser) -> Result<User> {
     let user = self
         .user_repo
@@ -366,22 +366,22 @@ pub async fn login(&self, login_user: LoginUser) -> Result<User> {
     let is_valid = verify_password(&login_user.password, &user.password_hash)?;
 
     if !is_valid {
-        bail!("Invalid username or password");  // ✅ Mesma mensagem
+        bail!("Invalid username or password");  // ✅ Same message
     }
 
     Ok(user)
 }
 ```
 
-**6. Ignorar erros de task execution**
+**6. Ignore task execution errors**
 ```rust
-// ❌ ERRADO - Silently swallowing errors
+// ❌ WRONG - Silently swallowing errors
 match self.execute_task(&task).await {
     Ok(_) => { /* success */ }
-    Err(e) => { /* ignora erro */ }
+    Err(e) => { /* ignore error */ }
 }
 
-// ✅ CERTO - Logar e atualizar status
+// ✅ CORRECT - Log and update status
 match self.execute_task(&task).await {
     Ok(_) => {
         task_repo.update_status(&task.id, TaskStatus::Completed, ...).await?;
@@ -400,33 +400,33 @@ match self.execute_task(&task).await {
 }
 ```
 
-**7. Criar múltiplos Docker clients**
+**7. Create multiple Docker clients**
 ```rust
-// ❌ ERRADO - Multiple connections
+// ❌ WRONG - Multiple connections
 let manager1 = DockerManager::new();
-let manager2 = DockerManager::new();  // NOVO CLIENTE!
+let manager2 = DockerManager::new();  // NEW CLIENT!
 
-// ✅ CERTO - Clone singleton (mesma conexão)
+// ✅ CORRECT - Clone singleton (same connection)
 let manager = DockerManager::new();
-let manager_clone = manager.clone();  // Clone barato (Docker é Arc)
+let manager_clone = manager.clone();  // Cheap clone (Docker is Arc)
 ```
 
-**8. Volume mounts sem :ro para arquivos read-only**
+**8. Volume mounts without :ro for read-only files**
 ```rust
-// ❌ ERRADO - PRD pode ser modificado no container
+// ❌ WRONG - PRD can be modified in container
 let binds = vec![
-    format!("{}:/workspace/prd.md", prd_path),  // RW por padrão
+    format!("{}:/workspace/prd.md", prd_path),  // RW by default
 ];
 
-// ✅ CERTO - Read-only para arquivos que não devem mudar
+// ✅ CORRECT - Read-only for files that shouldn't change
 let binds = vec![
     format!("{}:/workspace/prd.md:ro", prd_path),  // Read-only
     format!("{}:/workspace/task.md:ro", task_path),
-    format!("{}:/workspace/repo", repo_path),  // RW (pode escrever)
+    format!("{}:/workspace/repo", repo_path),  // RW (can write)
 ];
 ```
 
-## Dependências
+## Dependencies
 
 ### Dependencies (Cargo.toml)
 
@@ -450,225 +450,225 @@ tempfile = "3.14"                                # Test fixtures
 ### Key External Libraries
 
 **bcrypt (0.16)**
-- Password hashing com adaptive cost factor
-- DEFAULT_COST = 12 (balance entre security e performance)
-- Verificação segura contra timing attacks
+- Password hashing with adaptive cost factor
+- DEFAULT_COST = 12 (balance between security and performance)
+- Secure verification against timing attacks
 
 **bollard (0.18)**
 - Rust Docker client (async)
-- Abstração para Docker API
+- Abstraction for Docker API
 - Platform-aware connections (Unix named socket, Windows named pipe)
 
 **once_cell (1.20)**
-- Singleton pattern para Docker client
-- `OnceCell<Docker>` global em `docker.rs`
+- Singleton pattern for Docker client
+- `OnceCell<Docker>` global in `docker.rs`
 
 **tokio**
-- Async runtime para toda a aplicação
-- `tokio::spawn()` para background tasks
-- `tokio::time::sleep()` para delays
+- Async runtime for entire application
+- `tokio::spawn()` for background tasks
+- `tokio::time::sleep()` for delays
 
-## Downstreams (quem depende deste crate)
+## Downstreams (who depends on this crate)
 
-- `ralph-server` → Usa AuthService, DockerManager, LoopExecutor em handlers
+- `ralph-server` → Uses AuthService, DockerManager, LoopExecutor in handlers
 
-## Downlinks (Contexto Adicional)
+## Downlinks (Additional Context)
 
-**Para entender melhor:**
-- `/AGENTS.md` - Arquitetura geral e padrões do projeto
-- `/ralph-models/AGENTS.md` - Modelos que estes services usam
-- `/ralph-repositories/AGENTS.md` - Como estes services persistem dados
-- `/ralph-agent/AGENTS.md` - LLM providers e agentes (quando existir)
+**For better understanding:**
+- `/AGENTS.md` - General architecture and project patterns
+- `/ralph-models/AGENTS.md` - Models that these services use
+- `/ralph-repositories/AGENTS.md` - How these services persist data
+- `/ralph-agent/AGENTS.md` - LLM providers and agents (when exists)
 
-## Armadilhas
+## Pitfalls
 
-### Confusões Comuns
+### Common Confusions
 
 **1. Docker client singleton vs multiple instances**
 ```rust
-// DockerManager usa singleton global (DOCKER OnceCell)
-// Mas DockerManager::new() pode ser chamado múltiplas vezes
-let manager1 = DockerManager::new();  // Usa DOCKER.get_or_init()
-let manager2 = DockerManager::new();  // Usa MESMO DOCKER instance
+// DockerManager uses global singleton (DOCKER OnceCell)
+// But DockerManager::new() can be called multiple times
+let manager1 = DockerManager::new();  // Uses DOCKER.get_or_init()
+let manager2 = DockerManager::new();  // Uses SAME DOCKER instance
 
-// Clonar DockerManager é barato (Arc<Docker>)
-let manager_clone = manager1.clone();  // Share mesma conexão Docker
+// Cloning DockerManager is cheap (Arc<Docker>)
+let manager_clone = manager1.clone();  // Share same Docker connection
 ```
 
 **2. LoopExecutor::start() vs execution_loop()**
 ```rust
-// start() é público - cria container, inicia, e spawns execution_loop
+// start() is public - creates container, starts, and spawns execution_loop
 executor.start(&loop_id).await?;
 
-// execution_loop() é privado - rodado em background via tokio::spawn
-// NÃO chame execution_loop diretamente em handlers!
+// execution_loop() is private - runs in background via tokio::spawn
+// DO NOT call execution_loop directly in handlers!
 ```
 
 **3. Task status updates**
 ```rust
-// execution_loop atualiza status de task automaticamente:
-// - Pending → InProgress (antes de executar)
-// - InProgress → Completed/Failed (após execução)
+// execution_loop updates task status automatically:
+// - Pending → InProgress (before executing)
+// - InProgress → Completed/Failed (after execution)
 
-// NÃO atualize manualmente em handler HTTP!
-// Use executor.start() e deixe o loop gerenciar
+// DO NOT update manually in HTTP handler!
+// Use executor.start() and let the loop manage it
 ```
 
 **4. Container cleanup timing**
 ```rust
-// Container é removido APENAS em:
+// Container is removed ONLY in:
 // 1. executor.stop() → stop + remove
-// 2. docker_manager.cleanup_orphaned_containers() → containers exited/dead
+// 2. docker_manager.cleanup_orphaned_containers() → exited/dead containers
 
-// Container NÃO é removido em:
-// - executor.pause() → apenas pause (continua existindo)
-// - executor.resume() → apenas unpause
-// - Se der erro durante create_container (container nem existe)
+// Container is NOT removed in:
+// - executor.pause() → just pause (continues existing)
+// - executor.resume() → just unpause
+// - If error during create_container (container doesn't even exist)
 ```
 
 **5. bcrypt cost factor**
 ```rust
-// DEFAULT_COST = 12 (no bcrypt crate)
-// Este valor é usado automaticamente em hash_password()
+// DEFAULT_COST = 12 (in bcrypt crate)
+// This value is used automatically in hash_password()
 
 pub fn hash_password(password: &str) -> Result<String> {
     let hashed = hash(password, DEFAULT_COST)?;  // Cost 12
     Ok(hashed)
 }
 
-// NÃO mude DEFAULT_COST sem bom motivo:
-// - Cost 10: 2x mais rápido, 4x menos seguro
-// - Cost 12: balance atual (padrão da indústria)
-// - Cost 14: 4x mais lento, 16x mais seguro
+// DO NOT change DEFAULT_COST without good reason:
+// - Cost 10: 2x faster, 4x less secure
+// - Cost 12: current balance (industry standard)
+// - Cost 14: 4x slower, 16x more secure
 ```
 
-### Comportamentos Inesperados
+### Unexpected Behaviors
 
-**1. Loop continua mesmo após task failure**
+**1. Loop continues even after task failure**
 ```rust
-// execution_loop NÃO para se uma task falha!
+// execution_loop does NOT stop if a task fails!
 match self.execute_task(&task).await {
     Ok(_) => { /* task.completed */ }
     Err(e) => {
         task_repo.update_status(&task.id, TaskStatus::Failed, ...).await?;
-        // Continua com próxima task!
+        // Continues with next task!
     }
 }
 
-// Apenas para se:
-// - Não há mais tasks
-// - max_iterations atingido
-// - Loop status mudou (manual stop)
-// - Erro fatal (mas isso é raro)
+// Only stops if:
+// - No more tasks
+// - max_iterations reached
+// - Loop status changed (manual stop)
+// - Fatal error (but this is rare)
 ```
 
-**2. Execution loop é infinito até conditions**
+**2. Execution loop is infinite until conditions**
 ```rust
 async fn execution_loop(&self, loop_id: &str) -> Result<()> {
-    loop {  // Loop infinito!
+    loop {  // Infinite loop!
         // Check conditions
         if loop_.status != LoopStatus::Running {
-            return Ok(());  // Sai aqui
+            return Ok(());  // Exits here
         }
 
         // Process task
         // Sleep
 
-        // Repete...
+        // Repeat...
     }
 }
-// Sem return no loop = loop infinito (não é bug, é design!)
+// No return in loop = infinite loop (not a bug, it's design!)
 ```
 
 **3. tokio::spawn error handling**
 ```rust
-// tokio::spawn() NÃO propaga erros
+// tokio::spawn() does NOT propagate errors
 tokio::spawn(async move {
     if let Err(e) = executor.execution_loop(&loop_id_owned).await {
         tracing::error!("Execution loop error: {:?}", e);
-        // Erro é logado, mas NÃO propagado!
+        // Error is logged, but NOT propagated!
     }
 });
 
-// Handler continua normalmente mesmo se execution_loop falhar
-// Use logs ou eventos para monitorar loop health
+// Handler continues normally even if execution_loop fails
+// Use logs or events to monitor loop health
 ```
 
 **4. Docker container name collision**
 ```rust
-// Se container com mesmo nome já existe, create_container() retorna erro
+// If container with same name already exists, create_container() returns error
 let container_id = docker_manager
     .create_container(
         "alpine:latest",
         "/tmp/prd.md",
         "/tmp/task.md",
         "/tmp/repo",
-        Some("ralph-loop-123"),  // Se existir → Erro!
+        Some("ralph-loop-123"),  // If exists → Error!
     )
     .await?;
 
-// Solução: Stop/remove antes ou usar nome único
-// LoopExecutor usa formato: ralph-loop-{loop_id} (loop_id é UUID, então único)
+// Solution: Stop/remove before or use unique name
+// LoopExecutor uses format: ralph-loop-{loop_id} (loop_id is UUID, so unique)
 ```
 
-**5. Password hash verification não é case-sensitive**
+**5. Password hash verification is not case-sensitive**
 ```rust
-// bcrypt verification NÃO é case-sensitive para o password original
+// bcrypt verification is NOT case-sensitive for original password
 let hash1 = hash_password("Password123")?;
 let hash2 = hash_password("password123")?;
 
-// Hashes são DIFERENTES (bcrypt usa salt aleatório)
+// Hashes are DIFFERENT (bcrypt uses random salt)
 assert_ne!(hash1, hash2);
 
-// Mas ambos verificam corretamente
+// But both verify correctly
 assert!(verify_password("Password123", &hash1)?);  // True
 assert!(verify_password("password123", &hash1)?);  // False
 assert!(verify_password("password123", &hash2)?);  // True
 ```
 
-## Testes
+## Tests
 
 ### Unit Tests
 
 ```bash
-# Testes de hash/verify de senha
+# Password hash/verify tests
 cargo test --package ralph-services test_hash_and_verify
 
-# Testes de singleton Docker
+# Docker singleton tests
 cargo test --package ralph-services test_docker_singleton
 ```
 
 ### Integration Tests
 
 ```bash
-# Todos os testes (alguns requerem Docker daemon)
+# All tests (some require Docker daemon)
 cargo test --package ralph-services
 
-# Pular testes que requerem Docker
+# Skip tests requiring Docker
 cargo test --package ralph-services -- --ignore
 
-# Testes específicos
+# Specific tests
 cargo test --package ralph-services test_register_new_user
 cargo test --package ralph-services test_create_container_with_volumes
 ```
 
-### Testes que requerem Docker Daemon
+### Tests Requiring Docker Daemon
 
-A maioria dos testes de integração em `docker.rs` e `executor.rs` requerem Docker rodando:
+Most integration tests in `docker.rs` and `executor.rs` require Docker running:
 
 ```bash
-# Start Docker antes de rodar testes
-docker info  # Verifica se Docker está rodando
+# Start Docker before running tests
+docker info  # Check if Docker is running
 
-# Rodar testes
+# Run tests
 cargo test --package ralph-services
 
-# Se Docker não está rodando, testes são ignorados (#[ignore])
-# Use --ignored para ver quais testes foram pulados
+# If Docker is not running, tests are ignored (#[ignore])
+# Use --ignored to see which tests were skipped
 cargo test --package ralph-services -- --list --ignored
 ```
 
 ---
 
-**Última atualização:** 2026-01-18
-**Versão:** 1.0
+**Last updated:** 2026-01-18
+**Version:** 1.0

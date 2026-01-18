@@ -1,51 +1,51 @@
 # Ralph Server - HTTP Layer
 
-## Propósito
+## Purpose
 
-Este crate fornece a camada HTTP do Ralph Loop Manager. É o ponto de entrada para todas as requisições HTTP, gerenciando handlers, middleware, templates e conexões WebSocket.
+This crate provides the HTTP layer of the Ralph Loop Manager. It is the entry point for all HTTP requests, managing handlers, middleware, templates, and WebSocket connections.
 
-**O que esta área faz:**
-- HTTP server baseado em Axum framework com runtime Tokio
-- Handlers para autenticação (register, login, logout)
-- Handlers CRUD para Loops e Tasks
-- Controle de execução de loops (start, pause, resume, stop)
-- Middleware de autenticação via session
-- Middleware de proteção CSRF
-- Middleware de rate limiting (token bucket algorithm)
-- WebSocket streaming em tempo real para progresso de loops
-- Templates Askama com HTMX + Tailwind CSS
-- Validação de input (username, email, password, loop name)
+**What this area does:**
+- HTTP server based on Axum framework with Tokio runtime
+- Handlers for authentication (register, login, logout)
+- CRUD handlers for Loops and Tasks
+- Loop execution control (start, pause, resume, stop)
+- Session-based authentication middleware
+- CSRF protection middleware
+- Rate limiting middleware (token bucket algorithm)
+- Real-time WebSocket streaming for loop progress
+- Askama templates with HTMX + Tailwind CSS
+- Input validation (username, email, password, loop name)
 
-**O que esta área NÃO faz:**
-- Não contém lógica de negócio (isso é responsabilidade de `ralph-services`)
-- Não acessa banco de dados diretamente (usa repositories via `ralph-repositories`)
-- Não gerencia containers Docker (isso é responsabilidade de `ralph-services`)
-- Não executa loops (isso é responsabilidade de `ralph-services::LoopExecutor`)
+**What this area does NOT do:**
+- Does not contain business logic (that's `ralph-services`' responsibility)
+- Does not access database directly (uses repositories via `ralph-repositories`)
+- Does not manage Docker containers (that's `ralph-services`' responsibility)
+- Does not execute loops (that's `ralph-services::LoopExecutor`'s responsibility)
 
-## Estrutura
+## Structure
 
 ```
 ralph-server/
 ├── src/
-│   ├── main.rs           # Entry point, inicialização de serviços
-│   ├── lib.rs           # Re-export público
-│   ├── router.rs         # Configuração de rotas Axum
-│   ├── websocket.rs       # WebSocket handlers e BroadcastManager
-│   ├── validation.rs      # Funções de validação de input
+│   ├── main.rs           # Entry point, service initialization
+│   ├── lib.rs           # Public re-exports
+│   ├── router.rs         # Axum route configuration
+│   ├── websocket.rs       # WebSocket handlers and BroadcastManager
+│   ├── validation.rs      # Input validation functions
 │   ├── handlers/
-│   │   ├── mod.rs       # Re-export de handlers
+│   │   ├── mod.rs       # Handler re-exports
 │   │   ├── auth.rs      # Register, login, logout handlers
 │   │   ├── health.rs    # Health check endpoint
 │   │   ├── loops.rs     # Loop CRUD + control handlers
 │   │   └── tasks.rs     # Task CRUD handlers
 │   ├── middleware/
-│   │   ├── mod.rs           # Re-export de middleware
+│   │   ├── mod.rs           # Middleware re-exports
 │   │   ├── auth.rs          # Session-based authentication
 │   │   ├── csrf.rs          # CSRF token protection
 │   │   └── rate_limit.rs    # Token bucket rate limiting
 │   └── templates/
 │       ├── mod.rs               # Template structs (Askama)
-│       ├── base.html            # Base template com navbar/footer
+│       ├── base.html            # Base template with navbar/footer
 │       ├── auth/
 │       │   ├── login.html        # Login form
 │       │   └── register.html     # Register form
@@ -54,11 +54,11 @@ ralph-server/
 │           └── new.html            # Create loop form
 ```
 
-## Invariantes Críticos
+## Critical Invariants
 
-### AppState Clonabilidade
+### AppState Clonability
 
-**SEMPRE** implemente `Clone` para `AppState`:
+**ALWAYS** implement `Clone` for `AppState`:
 
 ```rust
 #[derive(Clone, Debug)]
@@ -73,17 +73,17 @@ pub struct AppState {
 }
 ```
 
-**Por que isso é crítico:**
-- Axum precisa clonar o state para cada request handler
-- Handlers são `async fn`, então state precisa ser `Clone`
-- Repositories já são `Arc<T>` internamente, então clone é barato
+**Why this is critical:**
+- Axum needs to clone state for each request handler
+- Handlers are `async fn`, so state needs to be `Clone`
+- Repositories are already `Arc<T>` internally, so clone is cheap
 
 ### Response Consistency
 
-**TODOS** os handlers devem retornar tuplas consistentes:
+**ALL** handlers must return consistent tuples:
 
 ```rust
-// ✅ CERTO - Tupla (StatusCode, Json<Response>)
+// ✅ CORRECT - Tuple (StatusCode, Json<Response>)
 pub async fn create_loop(
     State(state): State<AppState>,
     Extension(user_id): Extension<String>,
@@ -93,7 +93,7 @@ pub async fn create_loop(
     (StatusCode::CREATED, Json(response))
 }
 
-// ✅ CERTO - Para HTML templates
+// ✅ CORRECT - For HTML templates
 pub async fn list_loops_page(
     // ...
 ) -> (StatusCode, Html<String>) {
@@ -101,7 +101,7 @@ pub async fn list_loops_page(
     (StatusCode::OK, Html(html))
 }
 
-// ❌ ERRADO - Apenas Json (sem StatusCode)
+// ❌ WRONG - Just Json (without StatusCode)
 pub async fn handler() -> Json<Response> {
     Json(response)
 }
@@ -109,37 +109,37 @@ pub async fn handler() -> Json<Response> {
 
 ### HTTP Status Codes
 
-Use status codes corretos para cada situação:
+Use correct status codes for each situation:
 
 ```rust
 // Success
 StatusCode::OK              // 200 - GET, PUT, PATCH
-StatusCode::CREATED         // 201 - POST (criação)
+StatusCode::CREATED         // 201 - POST (creation)
 StatusCode::NO_CONTENT       // 204 - DELETE
 
 // Client Errors
-StatusCode::BAD_REQUEST     // 400 - Validação falhou
-StatusCode::UNAUTHORIZED     // 401 - Sem session, não autenticado
-StatusCode::FORBIDDEN        // 403 - CSRF falhou
-StatusCode::NOT_FOUND        // 404 - Resource não existe
+StatusCode::BAD_REQUEST     // 400 - Validation failed
+StatusCode::UNAUTHORIZED     // 401 - No session, not authenticated
+StatusCode::FORBIDDEN        // 403 - CSRF failed
+StatusCode::NOT_FOUND        // 404 - Resource doesn't exist
 
 // Server Errors
-StatusCode::INTERNAL_SERVER_ERROR // 500 - Erro interno
+StatusCode::INTERNAL_SERVER_ERROR // 500 - Internal error
 StatusCode::TOO_MANY_REQUESTS    // 429 - Rate limit exceeded
 ```
 
 ### Ownership Checks
 
-**SEMPRE** verifique ownership antes de permitir acesso:
+**ALWAYS** verify ownership before allowing access:
 
 ```rust
-// ❌ ERRADO - Sem verificação de ownership
+// ❌ WRONG - Without ownership check
 pub async fn get_loop(..., Path(id): Path<String>) -> ... {
     let loop_ = state.loop_repository.find_by_id(&id).await?.unwrap();
-    Ok(loop_)  // Qualquer usuário pode acessar loop de outro!
+    Ok(loop_)  // Any user can access another's loop!
 }
 
-// ✅ CERTO - Com verificação de ownership
+// ✅ CORRECT - With ownership check
 pub async fn get_loop(
     State(state): State<AppState>,
     Extension(user_id): Extension<String>,
@@ -156,22 +156,22 @@ pub async fn get_loop(
             }),
         );
     }
-    // continua com loop_
+    // continues with loop_
 }
 ```
 
 ### CSRF Protection
 
-**TODAS** as mutations (POST, PUT, DELETE, PATCH) precisam de CSRF token:
+**ALL** mutations (POST, PUT, DELETE, PATCH) need CSRF token:
 
 ```rust
-// Middleware CSRF gera token e adiciona em request.extensions()
+// CSRF middleware generates token and adds to request.extensions()
 Extension(csrf_token): Extension<CsrfToken>
 
-// Template inclui token em forms
+// Template includes token in forms
 <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
 
-// Cliente envia token em header
+// Client sends token in header
 fetch("/api/loops", {
     method: "POST",
     headers: {
@@ -183,24 +183,24 @@ fetch("/api/loops", {
 
 ### Session Management
 
-**SEMPRE** use SessionStore para gerenciar sessões:
+**ALWAYS** use SessionStore to manage sessions:
 
 ```rust
-// Criar sessão no login
+// Create session on login
 let session_token = state.session_store.create_session(user.id.clone()).await;
 
-// Validar sessão no middleware
+// Validate session in middleware
 if let Some(user_id) = session_store.validate_session(&session_id).await {
     request.extensions_mut().insert(user_id);
 }
 
-// Deletar sessão no logout
+// Delete session on logout
 state.session_store.delete_session(session_id).await;
 ```
 
-## Padrões de Uso
+## Usage Patterns
 
-### Criar Novo Handler
+### Create New Handler
 
 ```rust
 use axum::{
@@ -227,7 +227,7 @@ pub async fn create_loop(
     Extension(user_id): Extension<String>,
     Json(payload): Json<CreateLoop>,
 ) -> (StatusCode, Json<CreateLoopResponse>) {
-    // 3. Validação
+    // 3. Validation
     if payload.name.trim().is_empty() {
         return (
             StatusCode::BAD_REQUEST,
@@ -239,11 +239,11 @@ pub async fn create_loop(
         );
     }
 
-    // 4. Atribuir ownership
+    // 4. Assign ownership
     let mut create_data = payload;
     create_data.owner_id = user_id;
 
-    // 5. Chamar service/repository
+    // 5. Call service/repository
     match state.loop_repository.create(create_data).await {
         Ok(loop_) => (
             StatusCode::CREATED,
@@ -265,18 +265,18 @@ pub async fn create_loop(
 }
 ```
 
-### Adicionar Nova Rota
+### Add New Route
 
-No `router.rs`:
+In `router.rs`:
 
 ```rust
-// 1. Importar handler
+// 1. Import handler
 use crate::handlers::loops::{create_loop, delete_loop};
 
-// 2. Adicionar rota em protected_routes()
+// 2. Add route in protected_routes()
 fn protected_routes() -> Router<AppState> {
     Router::new()
-        // ... outras rotas
+        // ... other routes
         .route("/api/loops", post(create_loop))
         .route("/api/loops/{id}", delete(delete_loop))
         .route_layer(axum::middleware::from_fn(csrf_middleware))
@@ -284,9 +284,9 @@ fn protected_routes() -> Router<AppState> {
 }
 ```
 
-### Criar Nova Template
+### Create New Template
 
-1. Definir struct em `templates/mod.rs`:
+1. Define struct in `templates/mod.rs`:
 ```rust
 #[derive(Template)]
 #[template(path = "loops/detail.html")]
@@ -297,7 +297,7 @@ pub struct LoopDetailTemplate {
 }
 ```
 
-2. Criar arquivo `templates/loops/detail.html`:
+2. Create file `templates/loops/detail.html`:
 ```html
 {% extends "base.html" %}
 
@@ -315,7 +315,7 @@ pub struct LoopDetailTemplate {
 {% endblock %}
 ```
 
-3. Usar template no handler:
+3. Use template in handler:
 ```rust
 pub async fn loop_detail(
     State(_state): State<AppState>,
@@ -325,7 +325,7 @@ pub async fn loop_detail(
     let logged_in = !user_id.is_empty();
     let csrf_token = CsrfToken::generate().to_string();
 
-    // ... buscar loop ...
+    // ... fetch loop ...
 
     let template = LoopDetailTemplate {
         logged_in,
@@ -345,21 +345,21 @@ pub async fn loop_detail(
 
 ### Rate Limiting
 
-Configurar via environment variable:
+Configure via environment variable:
 
 ```bash
 # .env
 RATE_LIMIT=60  # requests per minute (default: 100)
 ```
 
-Middleware automaticamente:
-- Extrai IP de headers (`x-forwarded-for`, `x-real-ip`)
-- Usa token bucket algorithm por IP
-- Retorna 429 com `Retry-After` header quando limit excedido
+Middleware automatically:
+- Extracts IP from headers (`x-forwarded-for`, `x-real-ip`)
+- Uses token bucket algorithm per IP
+- Returns 429 with `Retry-After` header when limit exceeded
 
 ### WebSocket Connection
 
-Cliente JavaScript:
+JavaScript client:
 
 ```javascript
 // Connect to WebSocket for loop
@@ -386,42 +386,42 @@ ws.onerror = (error) => {
 };
 ```
 
-## Anti-padrões
+## Anti-patterns
 
-### NUNCA FAZER
+### NEVER DO
 
-**1. Ignorar CSRF protection**
+**1. Ignore CSRF protection**
 ```rust
-// ❌ ERRADO - POST sem CSRF
+// ❌ WRONG - POST without CSRF
 .route("/api/loops", post(create_loop))
 
-// ✅ CERTO - Com middleware CSRF
+// ✅ CORRECT - With CSRF middleware
 .route("/api/loops", post(create_loop))
 .route_layer(axum::middleware::from_fn(csrf_middleware))
 ```
 
-**2. Retornar JSON quando HTML é esperado (HTMX)**
+**2. Return JSON when HTML is expected (HTMX)**
 ```rust
-// ❌ ERRADO - HTMX espera HTML
+// ❌ WRONG - HTMX expects HTML
 pub async fn list_loops_page(...) -> Json<ListLoopsResponse> {
     Json(response)
 }
 
-// ✅ CERTO - HTMX precisa de HTML
+// ✅ CORRECT - HTMX needs HTML
 pub async fn list_loops_page(...) -> (StatusCode, Html<String>) {
     (StatusCode::OK, Html(html))
 }
 ```
 
-**3. Não verificar ownership**
+**3. Not verify ownership**
 ```rust
-// ❌ ERRADO - Qualquer user pode acessar
+// ❌ WRONG - Any user can access
 pub async fn get_loop(..., Path(id): Path<String>) -> ... {
     let loop_ = state.loop_repository.find_by_id(&id).await?.unwrap();
     Ok(loop_)
 }
 
-// ✅ CERTO - Verificar ownership
+// ✅ CORRECT - Verify ownership
 pub async fn get_loop(...) -> ... {
     let loop_ = state.loop_repository.find_by_id(&id).await?;
     if loop_.owner_id != user_id {
@@ -431,25 +431,25 @@ pub async fn get_loop(...) -> ... {
 }
 ```
 
-**4. Sempre retornar StatusCode + Response**
+**4. Always return StatusCode + Response**
 ```rust
-// ❌ ERRADO - Apenas response sem status
+// ❌ WRONG - Just response without status
 pub async fn handler() -> Json<Response> {
     Json(response)
 }
 
-// ✅ CERTO - Sempre com StatusCode
+// ✅ CORRECT - Always with StatusCode
 pub async fn handler() -> (StatusCode, Json<Response>) {
     (StatusCode::OK, Json(response))
 }
 ```
 
-**5. Swallow errors de template**
+**5. Swallow template errors**
 ```rust
-// ❌ ERRADO - Ignorando erro
+// ❌ WRONG - Ignoring error
 let html = template.render().unwrap();
 
-// ✅ CERTO - Propagando erro
+// ✅ CORRECT - Propagating error
 match template.render() {
     Ok(html) => (StatusCode::OK, Html(html)),
     Err(e) => (
@@ -459,12 +459,12 @@ match template.render() {
 }
 ```
 
-**6. Usar unwrap() sem tratamento**
+**6. Use unwrap() without handling**
 ```rust
-// ❌ ERRADO - Pode panic
+// ❌ WRONG - Can panic
 let loop_ = state.loop_repository.find_by_id(&id).await.unwrap();
 
-// ✅ CERTO - Propagando erro com status apropriado
+// ✅ CORRECT - Propagating error with appropriate status
 match state.loop_repository.find_by_id(&id).await {
     Ok(Some(loop_)) => Ok(loop_),
     Ok(None) => (
@@ -478,22 +478,22 @@ match state.loop_repository.find_by_id(&id).await {
 }
 ```
 
-## Padrões Específicos do ralph-server
+## ralph-server Specific Patterns
 
 ### Request Flow (Auth)
 
 ```
 1. Client POST /api/auth/register
    ↓
-2. Handler valida (username, email, password)
+2. Handler validates (username, email, password)
    ↓
-3. auth_service.register() (hash de password)
+3. auth_service.register() (password hash)
    ↓
 4. UserRepository.create() (DB)
    ↓
 5. SessionStore.create_session()
    ↓
-6. Retorna 201 Created com { success, user_id, session_token }
+6. Returns 201 Created with { success, user_id, session_token }
 ```
 
 ### Request Flow (Loop Control)
@@ -501,42 +501,42 @@ match state.loop_repository.find_by_id(&id).await {
 ```
 1. Client POST /api/loops/{id}/start
    ↓
-2. Auth middleware valida session
+2. Auth middleware validates session
    ↓
-3. CSRF middleware valida token
+3. CSRF middleware validates token
    ↓
-4. Handler verifica ownership (loop.owner_id == user_id)
+4. Handler verifies ownership (loop.owner_id == user_id)
    ↓
 5. LoopExecutor.start(loop_id)
    ↓
-6. DockerManager cria container
+6. DockerManager creates container
    ↓
 7. BroadcastManager.broadcast_loop_status("running")
    ↓
-8. Clientes WebSocket recebem update
+8. WebSocket clients receive update
 ```
 
 ### WebSocket Message Flow
 
 ```
-1. Client conecta: ws://localhost:3000/ws/loops/{loop_id}
+1. Client connects: ws://localhost:3000/ws/loops/{loop_id}
    ↓
 2. BroadcastManager.add_client(loop_id, sender)
    ↓
-3. Handler envia mensagem de boas-vindas (WsMessage::Ack)
+3. Handler sends welcome message (WsMessage::Ack)
    ↓
-4. LoopExecutor executa iteração
+4. LoopExecutor executes iteration
    ↓
 5. BroadcastManager.broadcast_loop_status(loop_id, "running")
    ↓
-6. Todos os clientes conectados recebem WsMessage::LoopStatus
+6. All connected clients receive WsMessage::LoopStatus
    ↓
 7. BroadcastManager.broadcast_iteration_complete(loop_id, iter_num, task_id)
    ↓
-8. Todos os clientes recebem WsMessage::IterationComplete
+8. All clients receive WsMessage::IterationComplete
 ```
 
-## Dependências
+## Dependencies
 
 ### Dependencies (Cargo.toml)
 
@@ -580,145 +580,145 @@ serde.workspace = true
 serde_json.workspace = true
 ```
 
-### Downstreams (quem depende deste crate)
+### Downstreams (who depends on this crate)
 
-Nenhum - Este é o crate de entrada (application binary)
+None - This is the entry crate (application binary)
 
-### Upstreams (quem este crate depende)
+### Upstreams (who this crate depends on)
 
-- `ralph-models` - Usado em handlers para DTOs (CreateUser, CreateLoop, CreateTask)
+- `ralph-models` - Used in handlers for DTOs (CreateUser, CreateLoop, CreateTask)
 - `ralph-repositories` - Repositories (UserRepository, LoopRepository, TaskRepository)
 - `ralph-services` - AuthService, DockerManager, LoopExecutor
 - `ralph-agent` - AgentConfig
 
-## Armadilhas
+## Pitfalls
 
-### Confusões Comuns
+### Common Confusions
 
-**1. Extensões de Request vs Extractores**
+**1. Request Extensions vs Extractors**
 
 ```rust
-// Extension: usado para passar dados entre middleware/handlers
-Extension(user_id): Extension<String>  // user_id injetado pelo auth middleware
+// Extension: used to pass data between middleware/handlers
+Extension(user_id): Extension<String>  // user_id injected by auth middleware
 
-// Extractor: usado para extrair dados da request
-Path(id): Path<String>              // id do path /api/loops/{id}
+// Extractor: used to extract data from request
+Path(id): Path<String>              // id from path /api/loops/{id}
 Query(params): Query<ListQuery>     // query params ?page=1&limit=10
 State(state): State<AppState>        // application state
-Json(payload): Json<CreateLoop>    // body JSON
+Json(payload): Json<CreateLoop>    // JSON body
 ```
 
-**2. HTTP Methods vs Rota Protection**
+**2. HTTP Methods vs Route Protection**
 
 ```rust
-// Safe methods (GET, HEAD, OPTIONS, TRACE) não precisam de CSRF
-.route("/api/loops", get(list_loops))  // CSRF não checado
+// Safe methods (GET, HEAD, OPTIONS, TRACE) don't need CSRF
+.route("/api/loops", get(list_loops))  // CSRF not checked
 
-// Unsafe methods (POST, PUT, DELETE, PATCH) PRECISAM de CSRF
-.route("/api/loops", post(create_loop))  // CSRF checado no middleware
+// Unsafe methods (POST, PUT, DELETE, PATCH) REQUIRE CSRF
+.route("/api/loops", post(create_loop))  // CSRF checked in middleware
 .route_layer(axum::middleware::from_fn(csrf_middleware))
 ```
 
 **3. WebSocket vs HTTP**
 
 ```rust
-// WebSocket é uma rota separada que faz upgrade de HTTP
+// WebSocket is a separate route that upgrades from HTTP
 .route("/ws/loops/{id}", get(websocket_handler))  // WebSocketUpgrade extractor
 
-// HTTP são rotas normais
+// HTTP are normal routes
 .route("/api/loops/{id}", get(get_loop))  // Json/Html response
 ```
 
 **4. Rate Limiting vs Auth**
 
 ```rust
-// Rate limiting é por IP (antes de auth)
+// Rate limiting is per IP (before auth)
 .layer(axum::middleware::from_fn_with_state(rate_limiter, rate_limit_middleware))
 
-// Auth é por session (depois de rate limiting)
+// Auth is per session (after rate limiting)
 .route_layer(axum::middleware::from_fn(auth_middleware))
 ```
 
 **5. CsrfToken vs CsrfTokenStore**
 
 ```rust
-// CsrfToken: wrapper type-safe para token string
-let token = CsrfToken::generate();  // gera novo token
-let token_str = token.as_str();  // retorna &str
+// CsrfToken: type-safe wrapper for token string
+let token = CsrfToken::generate();  // generates new token
+let token_str = token.as_str();  // returns &str
 
-// CsrfTokenStore: gerencia tokens de múltiplas sessões
-state.csrf_store.store(&session_id, token.as_str()).await;  // armazena
-let stored = state.csrf_store.get(&session_id).await;  // recupera
-let valid = state.csrf_store.validate(&session_id, token.as_str()).await;  // valida
+// CsrfTokenStore: manages tokens for multiple sessions
+state.csrf_store.store(&session_id, token.as_str()).await;  // store
+let stored = state.csrf_store.get(&session_id).await;  // retrieve
+let valid = state.csrf_store.validate(&session_id, token.as_str()).await;  // validate
 ```
 
-### Comportamentos Inesperados
+### Unexpected Behaviors
 
-**1. Auth Middleware injeta user_id em extensions**
+**1. Auth middleware injects user_id in extensions**
 
 ```rust
-// Após auth middleware, user_id está disponível em todos os handlers
+// After auth middleware, user_id is available in all handlers
 pub async fn handler(Extension(user_id): Extension<String>) {
-    // user_id é String contendo o ID do usuário autenticado
-    // Se não autenticado, user_id é string vazia ""
+    // user_id is String containing authenticated user's ID
+    // If not authenticated, user_id is empty string ""
 }
 
-// NOTA: Para rotas não protegidas, user_id pode estar ausente
-// Use .unwrap_or(String::new()) para safety
+// NOTE: For unprotected routes, user_id may be absent
+// Use .unwrap_or(String::new()) for safety
 ```
 
-**2. Template errors em runtime**
+**2. Template errors at runtime**
 
 ```rust
-// Askama compila templates em compile-time
-// Se template tem erro sintático, NÃO compila
+// Askama compiles templates at compile-time
+// If template has syntax error, it DOESN'T compile
 
-// Erros em runtime (ex: missing variable) returnam Err
+// Errors at runtime (e.g., missing variable) return Err
 match template.render() {
     Ok(html) => (StatusCode::OK, Html(html)),
     Err(e) => {
-        // e contém detalhes do erro (missing var, etc)
+        // e contains error details (missing var, etc)
         (StatusCode::INTERNAL_SERVER_ERROR, Html(format!("Template error: {}", e)))
     },
 }
 ```
 
-**3. WebSocket cleanup automático**
+**3. Automatic WebSocket cleanup**
 
 ```rust
-// Quando cliente desconecta, socket é dropado
-// Background task é abortada automaticamente
+// When client disconnects, socket is dropped
+// Background task is automatically aborted
 
-// Cleanup em remove_client() usa Arc::ptr_eq
+// Cleanup in remove_client() uses Arc::ptr_eq
 state.broadcast_manager.remove_client(&loop_id, &sender_arc).await;
 
-// NOTA: Se o mesmo client se reconectar, cria nova Arc
-// Clientes antigos não são removidos automaticamente
+// NOTE: If same client reconnects, creates new Arc
+// Old clients are not automatically removed
 ```
 
-**4. Rate limiting refill automático**
+**4. Automatic rate limiting refill**
 
 ```rust
-// Token bucket refills a cada request
-// Rate: requests_per_minute / 60 (tokens por segundo)
+// Token bucket refills on each request
+// Rate: requests_per_minute / 60 (tokens per second)
 
-// Exemplo: 60 requests/minuto = 1 token/segundo
-bucket.refill()  // adiciona tokens baseado no tempo decorrido
+// Example: 60 requests/minute = 1 token/second
+bucket.refill()  // adds tokens based on elapsed time
 
-// Se esgotou, retorna Err(retry_after)
-// retry_after = ceil(1.0 / refill_rate) segundos até próximo token
+// If exhausted, returns Err(retry_after)
+// retry_after = ceil(1.0 / refill_rate) seconds until next token
 ```
 
-## Downlinks (Contexto Adicional)
+## Downlinks (Additional Context)
 
-**Para entender melhor:**
-- `/AGENTS.md` - Arquitetura geral e padrões do projeto
-- `/ralph-models/AGENTS.md` - Modelos usados em handlers
-- `/ralph-repositories/AGENTS.md` - Repositories usados em handlers
-- `/ralph-services/AGENTS.md` - Services usados em handlers (AuthService, LoopExecutor)
-- `/ralph-agent/AGENTS.md` - AgentConfig usado em AppState
+**For better understanding:**
+- `/AGENTS.md` - General architecture and project patterns
+- `/ralph-models/AGENTS.md` - Models used in handlers
+- `/ralph-repositories/AGENTS.md` - Repositories used in handlers
+- `/ralph-services/AGENTS.md` - Services used in handlers (AuthService, LoopExecutor)
+- `/ralph-agent/AGENTS.md` - AgentConfig used in AppState
 
 ---
 
-**Última atualização:** 2026-01-18
-**Versão:** 1.0
+**Last updated:** 2026-01-18
+**Version:** 1.0

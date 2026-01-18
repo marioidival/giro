@@ -1,43 +1,43 @@
 # Database Migrations - Intent Layer
 
-## Propósito
+## Purpose
 
-Este diretório contém todas as migrations SQL que definem e evoluem o schema do banco de dados para o Ralph Loop Manager. As migrations são executadas automaticamente via SQLx cada vez que a aplicação inicia.
+This directory contains all SQL migrations that define and evolve the database schema for the Ralph Loop Manager. Migrations are automatically executed via SQLx each time the application starts.
 
-**O que esta área faz:**
-- Define o schema inicial do banco de dados (tabelas, colunas, tipos)
-- Gerencia evolução do schema ao longo do tempo
-- Estabelece foreign key constraints e regras de cascata
-- Cria indexes para otimizar queries comuns
-- Garante idempotência para execução segura múltipla
+**What this area does:**
+- Defines the initial database schema (tables, columns, types)
+- Manages schema evolution over time
+- Establishes foreign key constraints and cascade rules
+- Creates indexes to optimize common queries
+- Ensures idempotence for safe multiple execution
 
-**O que esta área NÃO faz:**
-- Não contém código Rust (somente SQL puro)
-- Não valida regras de negócio complexas (apenas constraints de DB)
-- Não roda queries de dados (apenas DDL - Data Definition Language)
-- Não substitui testes de repository (aplica schema, não valida queries)
+**What this area does NOT do:**
+- Does not contain Rust code (only pure SQL)
+- Does not validate complex business rules (only DB constraints)
+- Does not run data queries (only DDL - Data Definition Language)
+- Does not replace repository tests (applies schema, does not validate queries)
 
-## Estrutura
+## Structure
 
 ```
 migrations/
-├── 001_users.sql              # Tabela de usuários e autenticação
-├── 002_loops.sql              # Tabela de Ralph loops e configuração
-├── 003_tasks.sql              # Tabela de tasks hierárquicas
-└── 004_iterations_files.sql   # Tabelas de iterações e arquivos gerados
+├── 001_users.sql              # User table and authentication
+├── 002_loops.sql              # Ralph loops table and configuration
+├── 003_tasks.sql              # Hierarchical tasks table
+└── 004_iterations_files.sql   # Iterations and generated files tables
 ```
 
-### Convenção de Nomenclatura
+### Naming Convention
 
 `{number}_{description}.sql`
 
-- `number`: 3 dígitos zerados à esquerda (001, 002, 003...)
-- `description`: snake_case descrevendo o propósito
-- **Exemplo**: `005_add_loop_container_metrics.sql`
+- `number`: 3-digit zero-padded (001, 002, 003...)
+- `description`: snake_case describing the purpose
+- **Example**: `005_add_loop_container_metrics.sql`
 
-### Ordem de Execução
+### Execution Order
 
-As migrations rodam em ordem numérica crescente a cada startup da aplicação:
+Migrations run in ascending numeric order each application startup:
 
 ```
 001_users.sql
@@ -46,17 +46,17 @@ As migrations rodam em ordem numérica crescente a cada startup da aplicação:
           → 004_iterations_files.sql
 ```
 
-## Schema do Banco de Dados
+## Database Schema
 
-### Tabela: users
+### Table: users
 
-Armazena informações de autenticação e identificação de usuários.
+Stores authentication and user identification information.
 
 ```sql
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,                    -- UUID v4
-    username TEXT UNIQUE NOT NULL,          -- Nome de usuário único
-    email TEXT UNIQUE NOT NULL,             -- Email único
+    username TEXT UNIQUE NOT NULL,          -- Unique username
+    email TEXT UNIQUE NOT NULL,             -- Unique email
     password_hash TEXT NOT NULL,            -- Hash bcrypt (cost 12)
     created_at TEXT NOT NULL                -- ISO 8601 timestamp
 );
@@ -66,37 +66,37 @@ CREATE INDEX idx_users_username ON users(username);
 
 **Constraints:**
 - `id`: PRIMARY KEY (UUID v4)
-- `username`: UNIQUE - impede usuários duplicados
-- `email`: UNIQUE - impede emails duplicados
+- `username`: UNIQUE - prevents duplicate users
+- `email`: UNIQUE - prevents duplicate emails
 
 **Indexes:**
-- `idx_users_username`: Acelera lookups de login/username
+- `idx_users_username`: Speeds up login/username lookups
 
 ---
 
-### Tabela: loops
+### Table: loops
 
-Armazena Ralph loops com configuração completa de execução.
+Stores Ralph loops with complete execution configuration.
 
 ```sql
 CREATE TABLE IF NOT EXISTS loops (
     id TEXT PRIMARY KEY,                              -- UUID v4
-    name TEXT NOT NULL,                               -- Nome descritivo
-    description TEXT,                                 -- Opcional
+    name TEXT NOT NULL,                               -- Descriptive name
+    description TEXT,                                 -- Optional
     prd TEXT NOT NULL,                                -- Product Requirements Document (Markdown)
-    owner_id TEXT NOT NULL,                           -- FK para users
+    owner_id TEXT NOT NULL,                           -- FK for users
     provider TEXT NOT NULL,                            -- "claude", "openai", "sourcegraph"
     model TEXT NOT NULL,                              -- Ex: "claude-3-opus"
     docker_image TEXT NOT NULL DEFAULT 'ralph-loop-manager:latest',
-    cpu_limit INTEGER DEFAULT 1,                      -- Número de CPUs
-    memory_limit INTEGER DEFAULT 1024,                 -- Memória em MB
-    max_iterations INTEGER DEFAULT 100,                -- Limite de iterações
-    iteration_timeout INTEGER DEFAULT 300,             -- Timeout em segundos
-    iteration_delay INTEGER DEFAULT 0,                -- Delay entre iterações (ms)
-    git_repo_url TEXT,                                -- URL do repositório Git
+    cpu_limit INTEGER DEFAULT 1,                      -- Number of CPUs
+    memory_limit INTEGER DEFAULT 1024,                 -- Memory in MB
+    max_iterations INTEGER DEFAULT 100,                -- Iteration limit
+    iteration_timeout INTEGER DEFAULT 300,             -- Timeout in seconds
+    iteration_delay INTEGER DEFAULT 0,                -- Delay between iterations (ms)
+    git_repo_url TEXT,                                -- Git repository URL
     git_branch_pattern TEXT DEFAULT 'ralph/{loop_id}/{timestamp}',
     status TEXT NOT NULL,                             -- "created", "running", "paused", "completed", "error"
-    current_iteration INTEGER DEFAULT 0,              -- Iteração atual
+    current_iteration INTEGER DEFAULT 0,              -- Current iteration
     container_id TEXT,                                -- Docker container ID
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
@@ -108,41 +108,41 @@ CREATE INDEX idx_loops_status ON loops(status);
 ```
 
 **Constraints:**
-- `owner_id`: FK → users(id) - impede loops sem dono
+- `owner_id`: FK → users(id) - prevents loops without owner
 
 **Defaults:**
 - `docker_image`: "ralph-loop-manager:latest"
 - `cpu_limit`: 1
 - `memory_limit`: 1024 MB
 - `max_iterations`: 100
-- `iteration_timeout`: 300s (5 minutos)
+- `iteration_timeout`: 300s (5 minutes)
 - `iteration_delay`: 0ms
 - `git_branch_pattern`: "ralph/{loop_id}/{timestamp}"
 
 **Indexes:**
-- `idx_loops_owner_id`: Queries do tipo "todos os loops do usuário X"
-- `idx_loops_status`: Filtragem por status ("loops rodando")
+- `idx_loops_owner_id`: Queries like "all loops of user X"
+- `idx_loops_status`: Filtering by status ("running loops")
 
 ---
 
-### Tabela: tasks
+### Table: tasks
 
-Armazena tasks hierárquicas dentro de loops, com priorização e status.
+Stores hierarchical tasks within loops, with prioritization and status.
 
 ```sql
 CREATE TABLE IF NOT EXISTS tasks (
     id TEXT PRIMARY KEY,                          -- UUID v4
-    loop_id TEXT NOT NULL,                        -- FK para loops
-    title TEXT NOT NULL,                          -- Título curto
-    description TEXT NOT NULL,                    -- Descrição detalhada
+    loop_id TEXT NOT NULL,                        -- FK for loops
+    title TEXT NOT NULL,                          -- Short title
+    description TEXT NOT NULL,                    -- Detailed description
     status TEXT NOT NULL,                         -- "pending", "in_progress", "completed", "failed", "cancelled"
-    priority INTEGER DEFAULT 0,                   -- Prioridade (maior = mais importante)
-    parent_task_id TEXT,                          -- FK para tasks (subtasks)
-    created_by TEXT NOT NULL,                     -- "user" ou "llm"
-    iteration_id TEXT,                            -- FK para iterations (quando criada durante iteração)
-    started_at TEXT,                              -- Timestamp de início
-    completed_at TEXT,                            -- Timestamp de conclusão
-    error_message TEXT,                           -- Mensagem de erro se falhou
+    priority INTEGER DEFAULT 0,                   -- Priority (higher = more important)
+    parent_task_id TEXT,                          -- FK for tasks (subtasks)
+    created_by TEXT NOT NULL,                     -- "user" or "llm"
+    iteration_id TEXT,                            -- FK for iterations (when created during iteration)
+    started_at TEXT,                              -- Start timestamp
+    completed_at TEXT,                            -- Completion timestamp
+    error_message TEXT,                           -- Error message if failed
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     FOREIGN KEY (loop_id) REFERENCES loops(id) ON DELETE CASCADE,
@@ -155,32 +155,32 @@ CREATE INDEX idx_tasks_parent ON tasks(parent_task_id);
 ```
 
 **Constraints:**
-- `loop_id`: FK → loops(id) ON DELETE CASCADE - deleta tasks quando loop é deletado
-- `parent_task_id`: FK → tasks(id) ON DELETE SET NULL - seta NULL quando parent é deletado
+- `loop_id`: FK → loops(id) ON DELETE CASCADE - deletes tasks when loop is deleted
+- `parent_task_id`: FK → tasks(id) ON DELETE SET NULL - sets NULL when parent is deleted
 
 **Indexes:**
-- `idx_tasks_loop_status`: Queries do tipo "tasks pendentes do loop X"
-- `idx_tasks_status_priority`: Queries do tipo "próxima task a executar" (ordena por priority DESC)
-- `idx_tasks_parent`: Queries do tipo "subtasks da task X"
+- `idx_tasks_loop_status`: Queries like "pending tasks of loop X"
+- `idx_tasks_status_priority`: Queries like "next task to execute" (sorts by priority DESC)
+- `idx_tasks_parent`: Queries like "subtasks of task X"
 
 ---
 
-### Tabela: iterations
+### Table: iterations
 
-Armazena cada execução de iteração do loop, com output e métricas.
+Stores each loop iteration execution, with output and metrics.
 
 ```sql
 CREATE TABLE IF NOT EXISTS iterations (
     id TEXT PRIMARY KEY,                      -- UUID v4
-    loop_id TEXT NOT NULL,                    -- FK para loops
-    task_id TEXT NOT NULL,                    -- FK para tasks
-    iteration_number INTEGER NOT NULL,        -- Sequencial (1, 2, 3...)
-    output TEXT,                              -- Output do LLM
-    error TEXT,                               -- Mensagem de erro se falhou
+    loop_id TEXT NOT NULL,                    -- FK for loops
+    task_id TEXT NOT NULL,                    -- FK for tasks
+    iteration_number INTEGER NOT NULL,        -- Sequential (1, 2, 3...)
+    output TEXT,                              -- LLM output
+    error TEXT,                               -- Error message if failed
     status TEXT NOT NULL,                     -- "running", "completed", "error"
     started_at TEXT NOT NULL,
     completed_at TEXT,
-    tokens_used INTEGER,                      -- Tokens consumidos pela API
+    tokens_used INTEGER,                      -- Tokens consumed by API
     FOREIGN KEY (loop_id) REFERENCES loops(id),
     FOREIGN KEY (task_id) REFERENCES tasks(id)
 );
@@ -189,26 +189,26 @@ CREATE INDEX idx_iterations_loop_number ON iterations(loop_id, iteration_number)
 ```
 
 **Constraints:**
-- `loop_id`: FK → loops(id) - tracking de qual loop
-- `task_id`: FK → tasks(id) - tracking de qual task estava sendo executada
+- `loop_id`: FK → loops(id) - tracking which loop
+- `task_id`: FK → tasks(id) - tracking which task was being executed
 
 **Indexes:**
-- `idx_iterations_loop_number`: Queries do tipo "todas as iterações do loop X em ordem"
+- `idx_iterations_loop_number`: Queries like "all iterations of loop X in order"
 
 ---
 
-### Tabela: files
+### Table: files
 
-Armazena arquivos criados/modificados durante iterações.
+Stores files created/modified during iterations.
 
 ```sql
 CREATE TABLE IF NOT EXISTS files (
     id TEXT PRIMARY KEY,                      -- UUID v4
-    iteration_id TEXT NOT NULL,               -- FK para iterations
-    path TEXT NOT NULL,                       -- Caminho do arquivo
-    content_hash TEXT,                        -- Hash do conteúdo (para deduplicação)
-    size INTEGER,                             -- Tamanho em bytes
-    file_type TEXT,                           -- Tipo do arquivo (ex: "rust", "sql", "md")
+    iteration_id TEXT NOT NULL,               -- FK for iterations
+    path TEXT NOT NULL,                       -- File path
+    content_hash TEXT,                        -- Content hash (for deduplication)
+    size INTEGER,                             -- Size in bytes
+    file_type TEXT,                           -- File type (ex: "rust", "sql", "md")
     created_at TEXT NOT NULL,
     FOREIGN KEY (iteration_id) REFERENCES iterations(id)
 );
@@ -217,19 +217,19 @@ CREATE INDEX idx_files_iteration ON files(iteration_id);
 ```
 
 **Constraints:**
-- `iteration_id`: FK → iterations(id) - tracking de qual iteração criou o arquivo
+- `iteration_id`: FK → iterations(id) - tracking which iteration created the file
 
 **Indexes:**
-- `idx_files_iteration`: Queries do tipo "arquivos da iteração X"
+- `idx_files_iteration`: Queries like "files of iteration X"
 
-## Invariantes Críticos
+## Critical Invariants
 
-### Idempotência
+### Idempotency
 
-**TODAS** as migrations devem ser idempotentes - rodar múltiplas vezes sem erro:
+**ALL** migrations must be idempotent - run multiple times without error:
 
 ```sql
--- ✅ CERTO - Idempotent
+-- ✅ CORRECT - Idempotent
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
@@ -238,7 +238,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 
--- ❌ ERRADO - Falha se já existe
+-- ❌ WRONG - Fails if already exists
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
     ...
@@ -249,75 +249,75 @@ CREATE INDEX idx_users_username ON users(username);
 
 ### Foreign Keys
 
-**TODOS** os relacionamentos devem ter FK constraints definidas:
+**ALL** relationships must have FK constraints defined:
 
 ```sql
--- ✅ CERTO - FK com apropriado ON DELETE
+-- ✅ CORRECT - FK with appropriate ON DELETE
 FOREIGN KEY (loop_id) REFERENCES loops(id) ON DELETE CASCADE
 
--- ❌ ERRADO - Sem FK constraint (risco de orphaned records)
+-- ❌ WRONG - No FK constraint (risk of orphaned records)
 loop_id TEXT NOT NULL
 ```
 
 ### Cascade Rules
 
-**SEMPRE** definir comportamento de cascata apropriado:
+**ALWAYS** define appropriate cascade behavior:
 
-- **CASCADE DELETE**: Quando parent é deletado, children são deletados
-  - `tasks.loop_id` → `loops.id` (se deletar loop, deletar tasks)
-  - `iterations.loop_id` → `loops.id` (se deletar loop, deletar iterations)
-  - `files.iteration_id` → `iterations.id` (se deletar iteração, deletar files)
+- **CASCADE DELETE**: When parent is deleted, children are deleted
+  - `tasks.loop_id` → `loops.id` (if deleting loop, delete tasks)
+  - `iterations.loop_id` → `loops.id` (if deleting loop, delete iterations)
+  - `files.iteration_id` → `iterations.id` (if deleting iteration, delete files)
 
-- **SET NULL**: Quando parent é deletado, children têm FK setada para NULL
-  - `tasks.parent_task_id` → `tasks.id` (se deletar task parent, subtasks continuam)
+- **SET NULL**: When parent is deleted, children have FK set to NULL
+  - `tasks.parent_task_id` → `tasks.id` (if deleting task parent, subtasks continue)
 
-- **NO ACTION**: Default - não deleta children se parent é deletado (falha constraint)
-  - `loops.owner_id` → `users.id` (não deletar loop se usuário deletado)
+- **NO ACTION**: Default - does not delete children if parent is deleted (constraint fails)
+  - `loops.owner_id` → `users.id` (do not delete loop if user deleted)
 
 ### Text Timestamps
 
-**SEMPRE** usar TEXT para timestamps (ISO 8601):
+**ALWAYS** use TEXT for timestamps (ISO 8601):
 
 ```sql
--- ✅ CERTO - Text timestamp
+-- ✅ CORRECT - Text timestamp
 created_at TEXT NOT NULL  -- "2026-01-18T14:30:00Z"
 
--- ❌ ERRADO - SQLite não tem tipo DATETIME nativo
+-- ❌ WRONG - SQLite has no native DATETIME type
 created_at DATETIME NOT NULL
 ```
 
-### Indexes Performance-Critical
+### Performance-Critical Indexes
 
-**SEMPRE** criar indexes para queries frequentes:
+**ALWAYS** create indexes for frequent queries:
 
 ```sql
--- Queries que filtram por status
+-- Queries that filter by status
 SELECT * FROM loops WHERE status = 'running';
--- ↓ Necessário index
+-- ↓ Need index
 CREATE INDEX idx_loops_status ON loops(status);
 
--- Queries que ordenam por priority
+-- Queries that order by priority
 SELECT * FROM tasks WHERE status = 'pending' ORDER BY priority DESC LIMIT 1;
--- ↓ Necessário composite index
+-- ↓ Need composite index
 CREATE INDEX idx_tasks_status_priority ON tasks(status, priority DESC);
 ```
 
-## Padrões de Uso
+## Usage Patterns
 
-### Como Criar Nova Migration
+### Creating New Migration
 
-1. **Identifique a versão próxima** (ex: 005 se a última é 004)
-2. **Crie arquivo** `005_{descrição}.sql` no diretório `migrations/`
-3. **Escreva SQL idempotente** com `CREATE TABLE IF NOT EXISTS`
-4. **Adicione indexes** para queries que serão impactadas
-5. **Defina FK constraints** apropriadas
-6. **Teste** rodando a aplicação (migrations rodam automaticamente)
+1. **Identify next version** (ex: 005 if last is 004)
+2. **Create file** `005_{description}.sql` in the `migrations/` directory
+3. **Write idempotent SQL** with `CREATE TABLE IF NOT EXISTS`
+4. **Add indexes** for queries that will be impacted
+5. **Define FK constraints** appropriate
+6. **Test** by running the application (migrations run automatically)
 
-**Exemplo: Adicionar tabela de métricas de container**
+**Example: Add container metrics table**
 
 ```sql
 -- 005_container_metrics.sql
--- Adicionar tabela para rastrear métricas de CPU/memória de containers
+-- Add table to track CPU/memory metrics of containers
 
 CREATE TABLE IF NOT EXISTS container_metrics (
     id TEXT PRIMARY KEY,
@@ -334,85 +334,85 @@ CREATE INDEX IF NOT EXISTS idx_container_metrics_loop ON container_metrics(loop_
 CREATE INDEX IF NOT EXISTS idx_container_metrics_recorded ON container_metrics(recorded_at);
 ```
 
-### Como Adicionar Coluna
+### Adding Column
 
 ```sql
 -- 006_add_loop_auto_commit_flag.sql
--- Adicionar flag para habilitar auto-commit de PRs
+-- Add flag to enable auto-commit of PRs
 
--- SQLite não suporta ALTER TABLE ... IF NOT EXISTS
--- Use verificação ou crie nova migration que falhe se já existe
+-- SQLite does not support ALTER TABLE ... IF NOT EXISTS
+-- Use verification or create new migration that fails if already exists
 ALTER TABLE loops ADD COLUMN auto_commit INTEGER DEFAULT 0;
 ```
 
-### Como Adicionar Índice
+### Adding Index
 
 ```sql
 -- 007_add_loop_created_at_index.sql
--- Adicionar index para ordenar loops por data de criação
+-- Add index to sort loops by creation date
 
 CREATE INDEX IF NOT EXISTS idx_loops_created_at ON loops(created_at DESC);
 ```
 
-### Como Executar Migrations Manualmente
+### Running Migrations Manually
 
 ```bash
-# Migrations rodam automaticamente no startup
+# Migrations run automatically on startup
 cargo run --bin ralph-server
 
-# Output no log:
+# Output in log:
 # INFO ralph_repositories::database: Applying migrations
 # INFO ralph_repositories::database: Database pragmas verified successfully
 # INFO ralph_server: Database initialized and migrations applied
 ```
 
-### Como Verificar Schema Atual
+### Checking Current Schema
 
 ```bash
-# Conecte ao SQLite database
+# Connect to SQLite database
 sqlite3 ralph.db
 
-# Liste todas as tabelas
+# List all tables
 .tables
 
-# Veja schema de uma tabela
+# See schema of a table
 .schema users
 
-# Veja índices
+# See indexes
 .indexes
 
-# Saia
+# Quit
 .quit
 ```
 
-## Anti-padrões
+## Anti-patterns
 
-### NUNCA FAZER
+### NEVER DO
 
-**1. Não-idempotent DDL**
+**1. Non-idempotent DDL**
 ```sql
--- ❌ ERRADO - Falha na segunda execução
+-- ❌ WRONG - Fails on second execution
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
     username TEXT UNIQUE NOT NULL
 );
 
--- ✅ CERTO - Idempotent
+-- ✅ CORRECT - Idempotent
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     username TEXT UNIQUE NOT NULL
 );
 ```
 
-**2. Sem Foreign Keys**
+**2. No Foreign Keys**
 ```sql
--- ❌ ERRADO - Orphaned records possíveis
+-- ❌ WRONG - Orphaned records possible
 CREATE TABLE tasks (
-    loop_id TEXT NOT NULL,  -- Sem FK!
+    loop_id TEXT NOT NULL,  -- No FK!
     title TEXT NOT NULL
 );
 
--- ✅ CERTO - FK constraint
+-- ✅ CORRECT - FK constraint
 CREATE TABLE tasks (
     loop_id TEXT NOT NULL,
     title TEXT NOT NULL,
@@ -420,27 +420,27 @@ CREATE TABLE tasks (
 );
 ```
 
-**3. CASCADE Inapropriado**
+**3. Inappropriate CASCADE**
 ```sql
--- ❌ ERRADO - Deletar loops quando usuário deletado
--- Isso perde dados importantes!
+-- ❌ WRONG - Deleting loops when user deleted
+-- This loses important data!
 FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
 
--- ✅ CERTO - Impedir deleção se loop existe
+-- ✅ CORRECT - Prevent deletion if loop exists
 FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE RESTRICT
--- Ou usar NO ACTION (default)
+-- Or use NO ACTION (default)
 FOREIGN KEY (owner_id) REFERENCES users(id)
 ```
 
 **4. Missing Indexes**
 ```sql
--- ❌ ERRADO - Query lenta: WHERE status = 'running'
+-- ❌ WRONG - Slow query: WHERE status = 'running'
 CREATE TABLE loops (
     id TEXT PRIMARY KEY,
-    status TEXT NOT NULL  -- Sem index!
+    status TEXT NOT NULL  -- No index!
 );
 
--- ✅ CERTO - Index para performance
+-- ✅ CORRECT - Index for performance
 CREATE TABLE loops (
     id TEXT PRIMARY KEY,
     status TEXT NOT NULL
@@ -448,50 +448,50 @@ CREATE TABLE loops (
 CREATE INDEX idx_loops_status ON loops(status);
 ```
 
-**5. Integer para Timestamps**
+**5. Integer for Timestamps**
 ```sql
--- ❌ ERRADO - Unix timestamp (não legível, timezone issues)
+-- ❌ WRONG - Unix timestamp (unreadable, timezone issues)
 created_at INTEGER NOT NULL
 
--- ✅ CERTO - ISO 8601 string (legível, timezone included)
+-- ✅ CORRECT - ISO 8601 string (readable, timezone included)
 created_at TEXT NOT NULL  -- "2026-01-18T14:30:00Z"
 ```
 
-**6. Modificar Migration Existente**
+**6. Modifying Existing Migration**
 
 ```sql
--- ❌ ERRADO - Nunca modifique migration que já rodou em produção
--- Se 001_users.sql já foi aplicada, não edite o arquivo!
--- Isso quebra a integridade de migrations.
+-- ❌ WRONG - Never modify migration that has already run in production
+-- If 001_users.sql was already applied, do not edit the file!
+-- This breaks migration integrity.
 
--- ✅ CERTO - Crie nova migration para a mudança
+-- ✅ CORRECT - Create new migration for the change
 -- 008_add_user_last_login.sql
 ALTER TABLE users ADD COLUMN last_login TEXT;
 ```
 
 ## SQLx Migration System
 
-### Como Funciona
+### How It Works
 
 ```rust
-// Em ralph-repositories/src/database.rs
+// In ralph-repositories/src/database.rs
 sqlx::migrate!("../migrations")
     .run(&pool)
     .await
     .context("Failed to run database migrations")?;
 ```
 
-**O que SQLx faz:**
-1. Lê todos os arquivos `.sql` do diretório `migrations/`
-2. Cria tabela `_sqlx_migrations` para tracking
-3. Checa quais migrations já foram aplicadas
-4. Executa migrations pendentes em ordem numérica
-5. Grava sucesso na tabela `_sqlx_migrations`
+**What SQLx does:**
+1. Reads all `.sql` files from the `migrations/` directory
+2. Creates `_sqlx_migrations` table for tracking
+3. Checks which migrations have already been applied
+4. Executes pending migrations in numerical order
+5. Records success in the `_sqlx_migrations` table
 
-### Tabela de Tracking
+### Tracking Table
 
 ```sql
--- Criada automaticamente pelo SQLx
+-- Created automatically by SQLx
 CREATE TABLE _sqlx_migrations (
     version INTEGER PRIMARY KEY,
     description TEXT,
@@ -500,7 +500,7 @@ CREATE TABLE _sqlx_migrations (
 );
 ```
 
-**Conteúdo exemplo:**
+**Example content:**
 | version | description | installed_on | checksum |
 |---------|-------------|--------------|----------|
 | 1 | create_users_table | 2026-01-18T14:00:00Z | abc123... |
@@ -510,20 +510,20 @@ CREATE TABLE _sqlx_migrations (
 
 ### Rollbacks
 
-**SQLx não suporta rollback automático.**
+**SQLx does not support automatic rollback.**
 
-Para reverter schema, crie migration de revert:
+To revert schema, create revert migration:
 
 ```sql
 -- 009_revert_container_metrics.sql
--- Reverter migration 005 (remover tabela)
+-- Revert migration 005 (remove table)
 
 DROP TABLE IF EXISTS container_metrics;
 DROP INDEX IF EXISTS idx_container_metrics_loop;
 DROP INDEX IF EXISTS idx_container_metrics_recorded;
 ```
 
-## Dependências
+## Dependencies
 
 ### Dependencies (Cargo.toml)
 
@@ -532,46 +532,46 @@ DROP INDEX IF EXISTS idx_container_metrics_recorded;
 sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite", "migrate", "chrono"] }
 ```
 
-**Features relevantes:**
-- `migrate`: Habilita `sqlx::migrate!()` macro
-- `sqlite`: Suporte para SQLite
-- `runtime-tokio`: Runtime async Tokio
+**Relevant features:**
+- `migrate`: Enables `sqlx::migrate!()` macro
+- `sqlite`: SQLite support
+- `runtime-tokio`: Tokio async runtime
 
-### Downstreams (quem depende das migrations)
+### Downstreams (who depends on the migrations)
 
-- `ralph-repositories` → Executa migrations via SQLx
-- `ralph-server` → Inicia database (que roda migrations)
-- `ralph-services` → Usa models que dependem do schema
+- `ralph-repositories` → Executes migrations via SQLx
+- `ralph-server` → Initializes database (which runs migrations)
+- `ralph-services` → Uses models that depend on the schema
 
-## Armadilhas
+## Pitfalls
 
-### Confusões Comuns
+### Common Confusions
 
-**1. Ordem de Migrations Importa**
+**1. Migration Order Matters**
 
 ```sql
--- ❌ ERRADO - Migration 002 tenta criar FK para tabela que não existe ainda
+-- ❌ WRONG - Migration 002 tries to create FK for table that doesn't exist yet
 -- 002_tasks.sql
-FOREIGN KEY (loop_id) REFERENCES loops(id)  -- loops foi criado em 003!
+FOREIGN KEY (loop_id) REFERENCES loops(id)  -- loops was created in 003!
 
--- ✅ CERTO - loops existe antes de tasks
+-- ✅ CORRECT - loops exists before tasks
 -- 002_loops.sql
 CREATE TABLE loops (...);
 
 -- 003_tasks.sql
 CREATE TABLE tasks (
     loop_id TEXT NOT NULL,
-    FOREIGN KEY (loop_id) REFERENCES loops(id)  -- loops já existe
+    FOREIGN KEY (loop_id) REFERENCES loops(id)  -- loops already exists
 );
 ```
 
 **2. SQLite ALTER TABLE Limitations**
 
 ```sql
--- SQLite não suporta:
-ALTER TABLE users DROP COLUMN password_hash;  -- ❌ NÃO suportado
+-- SQLite does not support:
+ALTER TABLE users DROP COLUMN password_hash;  -- ❌ NOT supported
 
--- Workaround: criar nova tabela e migrar dados
+-- Workaround: create new table and migrate data
 -- 010_remove_password_hash.sql
 CREATE TABLE users_new (
     id TEXT PRIMARY KEY,
@@ -586,34 +586,34 @@ DROP TABLE users;
 ALTER TABLE users_new RENAME TO users;
 ```
 
-**3. Migration Naming e Execução**
+**3. Migration Naming and Execution**
 
 ```sql
--- ❌ ERRADO - Migration 002 executará antes de 010
+-- ❌ WRONG - Migration 002 will run before 010
 -- 002_add_important_feature.sql
 -- 010_add_urgent_bugfix.sql
 
--- ✅ CERTO - Use números sequenciais
+-- ✅ CORRECT - Use sequential numbers
 -- 005_add_important_feature.sql
 -- 006_add_urgent_bugfix.sql
 ```
 
-**4. Type Mismatch entre Schema e Rust**
+**4. Type Mismatch between Schema and Rust**
 
 ```sql
--- Schema define:
+-- Schema defines:
 CREATE TABLE loops (
     status TEXT NOT NULL  -- "running", "paused", etc
 );
 
--- Mas o código Rust espera LoopStatus enum:
-// Isso causará erro em compile-time com SQLx!
+-- But the Rust code expects LoopStatus enum:
+// This will cause compile-time error with SQLx!
 let status: LoopStatus = sqlx::query_as!(Loop, "SELECT status FROM loops WHERE id = ?", id)
     .fetch_one(&pool)
     .await?
-    .status;  // ❌ ERRO: status é String, não LoopStatus
+    .status;  // ❌ ERROR: status is String, not LoopStatus
 
-// ✅ CERTO - Mapear String → Enum no repository
+// ✅ CORRECT - Map String → Enum in repository
 impl From<LoopRow> for Loop {
     fn from(row: LoopRow) -> Self {
         Self {
@@ -624,50 +624,50 @@ impl From<LoopRow> for Loop {
 }
 ```
 
-**5. NULL vs String Vazia**
+**5. NULL vs Empty String**
 
 ```sql
--- ❌ ERRADO - Ambiguidade
-description TEXT  -- Pode ser NULL ou "" ?
+-- ❌ WRONG - Ambiguity
+description TEXT  -- Can be NULL or "" ?
 
--- ✅ CERTO - Seja explícito
-description TEXT NOT NULL DEFAULT ''  -- Nunca NULL, pode ser ""
--- OU
-description TEXT  -- Pode ser NULL, mas não ""
+-- ✅ CORRECT - Be explicit
+description TEXT NOT NULL DEFAULT ''  -- Never NULL, can be ""
+-- OR
+description TEXT  -- Can be NULL, but not ""
 ```
 
-## Pragmas SQLite
+## SQLite Pragmas
 
-Os seguintes pragmas são configurados automaticamente em `ralph-repositories/src/database.rs`:
+The following pragmas are configured automatically in `ralph-repositories/src/database.rs`:
 
 ```rust
-.pragma("foreign_keys", "1")           // FK constraints ativadas
-.pragma("journal_mode", "WAL")         // Write-Ahead Logging (melhor concorrência)
-.pragma("synchronous", "NORMAL")       // Balance segurança/performance
-.pragma("cache_size", "-65536")        // 64MB cache
-.pragma("auto_vacuum", "INCREMENTAL")  // VACUUM automático
+.pragma("foreign_keys", "1")           // FK constraints enabled
+.pragma("journal_mode", "WAL")         // Write-Ahead Logging (better concurrency)
+.pragma("synchronous", "NORMAL")       # Balance safety/performance
+.pragma("cache_size", "-65536")        # 64MB cache
+.pragma("auto_vacuum", "INCREMENTAL")  # Automatic VACUUM
 ```
 
-**Por que importam:**
-- `foreign_keys=ON`: Sem isso, FK constraints são ignoradas!
-- `journal_mode=WAL`: Permite leitura e escrita simultâneas
-- `synchronous=NORMAL`: Mais rápido que FULL, ainda seguro
-- `cache_size=64MB`: Reduz I/O de disco
-- `auto_vacuum=INCREMENTAL`: Libera espaço automaticamente
+**Why they matter:**
+- `foreign_keys=ON`: Without this, FK constraints are ignored!
+- `journal_mode=WAL`: Allows simultaneous reads and writes
+- `synchronous=NORMAL`: Faster than FULL, still safe
+- `cache_size=64MB`: Reduces disk I/O
+- `auto_vacuum=INCREMENTAL`: Frees space automatically
 
-## Downlinks (Contexto Adicional)
+## Downlinks (Additional Context)
 
-**Para entender melhor:**
-- `/AGENTS.md` - Arquitetura geral do projeto
-- `/ralph-repositories/AGENTS.md` - Como migrations são executadas e usadas
-- `/ralph-models/AGENTS.md` - Models que correspondem às tabelas do schema
-- `/ralph-services/AGENTS.md` - Lógica de negócio que depende do schema
+**To understand better:**
+- `/AGENTS.md` - General project architecture
+- `/ralph-repositories/AGENTS.md` - How migrations are executed and used
+- `/ralph-models/AGENTS.md` - Models that correspond to the schema tables
+- `/ralph-services/AGENTS.md` - Business logic that depends on the schema
 
-**Arquivos relacionados:**
-- `ralph-repositories/src/database.rs` - Execução de migrations
-- `ralph-server/src/main.rs` - Inicialização do database
+**Related files:**
+- `ralph-repositories/src/database.rs` - Migration execution
+- `ralph-server/src/main.rs` - Database initialization
 
 ---
 
-**Última atualização:** 2026-01-18
-**Versão:** 1.0
+**Last updated:** 2026-01-18
+**Version:** 1.0

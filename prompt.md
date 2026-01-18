@@ -14,7 +14,7 @@ create commits only for the files you worked on
 
 your code must not have any lint, logic, broken tests or formatting issues.
 
-when finished, close the issue on github using gh and update the issues_execution_order.json file marking the issue as done
+when finished, close the issue on github using gh and update the issues_execution_order.json file moving the object from issues to tasksDone and marking the issue as done
 
 git push origin trunk, never create new branches
 

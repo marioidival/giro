@@ -1,39 +1,39 @@
 # Ralph Agent - Intent Layer
 
-## Propósito
+## Purpose
 
-Este crate fornece a camada de orquestração de LLM (Large Language Model) para o Ralph Loop Manager. Implementa uma interface abstrata para múltiplos providers de LLM (Claude, OpenAI, Sourcegraph Amp) e gerencia a execução de tarefas de desenvolvimento assistido por IA.
+This crate provides the LLM (Large Language Model) orchestration layer for Ralph Loop Manager. It implements an abstract interface for multiple LLM providers (Claude, OpenAI, Sourcegraph Amp) and manages AI-assisted development task execution.
 
-**O que esta área faz:**
-- Abstrai chamadas de LLM para múltiplos providers (Claude, OpenAI, Amp)
-- Gerencia configuração e execução de tarefas de IA
-- Faz parsing de respostas estruturadas (tasks sugeridas, comandos)
-- Executa comandos em containers Docker via `ExecutionContext`
-- Fornece interface de tools para operações de arquivo e comando
-- Gerencia contexto e iterações com truncamento automático
-- Mock providers para testes
+**What this area does:**
+- Abstracts LLM calls for multiple providers (Claude, OpenAI, Amp)
+- Manages AI task configuration and execution
+- Parses structured responses (suggested tasks, commands)
+- Executes commands in Docker containers via `ExecutionContext`
+- Provides tool interface for file and command operations
+- Manages context and iterations with automatic truncation
+- Mock providers for testing
 
-**O que esta área NÃO faz:**
-- Não acessa banco de dados (isso é responsabilidade de `ralph-repositories`)
-- Não gerencia containers Docker diretamente (usa `ExecutionContext`)
-- Não implementa lógica de negócio de loops (isso é responsabilidade de `ralph-services`)
-- Não lida com HTTP requests/responses (isso é responsabilidade de `ralph-server`)
+**What this area does NOT do:**
+- Does not access database (that's `ralph-repositories`' responsibility)
+- Does not manage Docker containers directly (uses `ExecutionContext`)
+- Does not implement loop business logic (that's `ralph-services`' responsibility)
+- Does not handle HTTP requests/responses (that's `ralph-server`' responsibility)
 
-## Arquitetura Geral
+## General Architecture
 
-### Estrutura de Módulos
+### Module Structure
 
 ```
 ralph-agent/
-├── lib.rs          # Re-exports públicos
+├── lib.rs          # Public re-exports
 ├── agent.rs        # CodeAgent, AgentConfig, AgentResult
 ├── provider.rs     # LLMProviderTrait, ClaudeProvider, OpenAIProvider
-├── executor.rs     # ExecutionContext (execução em containers)
+├── executor.rs     # ExecutionContext (container execution)
 ├── tools.rs        # Tool trait, FileTool, CommandTool
-└── mocks.rs       # MockLLMProvider para testes
+└── mocks.rs       # MockLLMProvider for tests
 ```
 
-### Fluxo de Execução
+### Execution Flow
 
 ```
 ┌─────────────┐
@@ -44,10 +44,10 @@ ralph-agent/
        ▼
 ┌──────────────────────────────────────────────┐
 │           CodeAgent                        │
-│  - Gerencia configuração                  │
-│  - Trunca contexto (MAX 100 entradas)    │
-│  - Envia requests para providers          │
-│  - Aplica timeout (default 60s)          │
+│  - Manages configuration                  │
+│  - Truncates context (MAX 100 entries)    │
+│  - Sends requests to providers          │
+│  - Applies timeout (default 60s)          │
 └──────┬───────────────────────────────────┘
        │
        ├──────────────┬─────────────┐
@@ -71,17 +71,17 @@ ralph-agent/
                                      ▼
                      ┌────────────────────┐
                      │  ExecutionContext│
-                     │  - Comandos em   │
+                     │  - Commands in   │
                      │    containers     │
                      │  - File I/O      │
                      └────────────────────┘
 ```
 
-## Invariantes Críticos
+## Critical Invariants
 
 ### Provider Abstraction
 
-**TODO** provider deve implementar `LLMProviderTrait`:
+**EVERY** provider must implement `LLMProviderTrait`:
 
 ```rust
 #[async_trait]
@@ -90,33 +90,33 @@ pub trait LLMProviderTrait: Send + Sync {
 }
 ```
 
-**Requisitos:**
-- Deve ser `Send + Sync` para execução async
-- Recebe `LLMRequest` (prd, task, context, max_tokens)
-- Retorna `LLMResponse` (content, tokens_used, suggested_tasks, commands)
-- Propaga erros via `anyhow::Result`
+**Requirements:**
+- Must be `Send + Sync` for async execution
+- Receives `LLMRequest` (prd, task, context, max_tokens)
+- Returns `LLMResponse` (content, tokens_used, suggested_tasks, commands)
+- Propagates errors via `anyhow::Result`
 
 ### Context Truncation
 
-**Contexto SEMPRE truncado para no máximo 100 entradas:**
+**Context ALWAYS truncated to max 100 entries:**
 
 ```rust
 pub const MAX_CONTEXT_ENTRIES: usize = 100;
 ```
 
-- FIFO (First-In-First-Out) quando excede
-- Mantém as 100 entradas mais recentes
-- Log warning quando truncamento acontece
-- Ordem preservada após truncamento
+- FIFO (First-In-First-Out) when exceeded
+- Keeps 100 most recent entries
+- Logs warning when truncation happens
+- Order preserved after truncation
 
-**Por que é crítico:**
-- Previne context window overflow
-- Mantém tokens sob controle
-- Garante performance consistente
+**Why this is critical:**
+- Prevents context window overflow
+- Keeps tokens under control
+- Ensures consistent performance
 
 ### Timeout Enforcement
 
-**SEMPRE** aplicar timeout a requests LLM:
+**ALWAYS** apply timeout to LLM requests:
 
 ```rust
 let timeout_duration = tokio::time::Duration::from_secs(self.config.timeout_seconds);
@@ -126,53 +126,53 @@ let llm_response = tokio::time::timeout(timeout_duration, self.provider.complete
     .map_err(|_| AgentError::Timeout(self.config.timeout_seconds))??;
 ```
 
-- Default: 60 segundos
-- Configurável via `AgentConfig::timeout_seconds`
-- Retorna `AgentError::Timeout` se exceder
+- Default: 60 seconds
+- Configurable via `AgentConfig::timeout_seconds`
+- Returns `AgentError::Timeout` if exceeded
 
 ### Response Parsing
 
-**LLM DEVE usar tags específicas para dados estruturados:**
+**LLM MUST use specific tags for structured data:**
 
-**Tasks sugeridas:**
+**Suggested tasks:**
 ```
 <TASKS>[
   {"title": "Add tests", "description": "Write unit tests", "priority": 5}
 ]</TASKS>
 ```
 
-**Comandos:**
+**Commands:**
 ```
 <CMD>cargo build</CMD>
 <CMD>cargo test</CMD>
 ```
 
 **Parsing:**
-- `parse_suggested_tasks()` → Extrai JSON array entre `<TASKS>...</TASKS>`
-- `parse_commands()` → Extrai todos `<CMD>...</CMD>` tags
-- Retorna `None` se tags não encontradas
-- Silencioso (não falha se faltam tags)
+- `parse_suggested_tasks()` → Extracts JSON array between `<TASKS>...</TASKS>`
+- `parse_commands()` → Extracts all `<CMD>...</CMD>` tags
+- Returns `None` if tags not found
+- Silent (doesn't fail if tags missing)
 
 ### Docker Execution Safety
 
-**TODOS** os comandos em containers DEVEM:
+**ALL** commands in containers MUST:
 
 ```rust
-// 1. Timeout de 300 segundos (5 minutos)
+// 1. Timeout of 300 seconds (5 minutes)
 timeout(Duration::from_secs(300), self.execute_in_container(&[command])).await
 
-// 2. Checar exit code != 0
+// 2. Check exit code != 0
 if let Some(exit_code) = inspect.exit_code && exit_code != 0 {
     return Err(anyhow::anyhow!("Command failed with exit code {}", exit_code));
 }
 
-// 3. Decodificar output UTF-8 com tratamento de erro
+// 3. Decode output UTF-8 with error handling
 String::from_utf8(stdout).map_err(|e| anyhow::anyhow!("Failed to decode output: {}", e))
 ```
 
 ### Serialization/Deserialization
 
-**TODOS** os structs públicas DEVEM implementar `Serialize`/`Deserialize`:
+**ALL** public structs MUST implement `Serialize`/`Deserialize`:
 
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -185,33 +185,33 @@ pub struct LLMRequest { ... }
 pub struct LLMResponse { ... }
 ```
 
-**Por que é crítico:**
-- Persistência de configuração
-- Comunicação entre serviços
-- Debugging e logging
+**Why this is critical:**
+- Configuration persistence
+- Inter-service communication
+- Debugging and logging
 
-## Padrões de Uso
+## Usage Patterns
 
-### Criar CodeAgent com Provider
+### Create CodeAgent with Provider
 
 ```rust
 use ralph_agent::{CodeAgent, AgentConfig, provider::ClaudeProvider};
 
-// Criar provider Claude
+// Create Claude provider
 let claude = ClaudeProvider::new("sk-ant-...".to_string())?;
 
-// Configurar agent
+// Configure agent
 let config = AgentConfig {
     max_iterations: 10,
     max_tokens_per_request: Some(4000),
     timeout_seconds: 60,
 };
 
-// Criar agent (provider deve ser Box<dyn LLMProviderTrait>)
+// Create agent (provider must be Box<dyn LLMProviderTrait>)
 let agent = CodeAgent::new(Box::new(claude), config);
 ```
 
-### Executar Tarefa com Contexto
+### Execute Task with Context
 
 ```rust
 let prd = r#"
@@ -232,18 +232,18 @@ let result = agent.execute_task(prd, task, context).await?;
 println!("Content: {}", result.content);
 println!("Tokens used: {}", result.tokens_used);
 
-// Processar tasks sugeridas
+// Process suggested tasks
 for suggested_task in result.suggested_tasks {
     println!("Suggested: {} (priority: {})", suggested_task.title, suggested_task.priority);
 }
 
-// Executar comandos extraídos
+// Execute extracted commands
 for command in result.commands_executed {
     println!("Command: {}", command);
 }
 ```
 
-### Usar OpenAI Provider
+### Use OpenAI Provider
 
 ```rust
 use ralph_agent::provider::OpenAIProvider;
@@ -260,7 +260,7 @@ let result = agent.execute_task(
 ).await?;
 ```
 
-### Executar Comandos em Container
+### Execute Commands in Container
 
 ```rust
 use ralph_agent::ExecutionContext;
@@ -269,24 +269,24 @@ use std::collections::HashMap;
 let ctx = ExecutionContext::new(
     "container-id-123".to_string(),
     "/workspace".to_string(),
-    HashMap::new(), // sem env vars customizadas
+    HashMap::new(), // no custom env vars
 );
 
-// Executar comando simples
+// Execute simple command
 let output = ctx.execute_command("echo 'Hello, World!'").await?;
 assert_eq!(output, "Hello, World!");
 
-// Ler arquivo
+// Read file
 let content = ctx.read_file("/workspace/config.toml").await?;
 
-// Escrever arquivo
+// Write file
 ctx.write_file("/workspace/output.txt", "Generated content").await?;
 
-// Listar arquivos
+// List files
 let files = ctx.list_files(Some("/workspace/src")).await?;
 ```
 
-### Usar Tools para Operações
+### Use Tools for Operations
 
 ```rust
 use ralph_agent::{Tool, FileTool, CommandTool};
@@ -294,39 +294,39 @@ use ralph_agent::{Tool, FileTool, CommandTool};
 // File tool
 let file_tool = FileTool::new();
 
-// Ler arquivo (placeholder - integra com ExecutionContext no futuro)
+// Read file (placeholder - integrates with ExecutionContext in future)
 let result = file_tool.execute(&["read", "/workspace/file.txt"]);
 println!("{}", result.output);
 
-// Escrever arquivo
+// Write file
 let result = file_tool.execute(&["write", "/workspace/file.txt", "Hello"]);
 println!("{}", result.output);
 
-// Listar arquivos
+// List files
 let result = file_tool.execute(&["list", "/workspace"]);
 println!("{}", result.output);
 
 // Command tool
 let cmd_tool = CommandTool::new();
 
-// Executar comando
+// Execute command
 let result = cmd_tool.execute(&["cargo", "build"]);
 println!("{}", result.output);
 ```
 
-### Testar com Mock Provider
+### Test with Mock Provider
 
 ```rust
 use ralph_agent::CodeAgent;
 use ralph_agent::mocks::MockLLMProvider;
 
-// Criar mock provider
+// Create mock provider
 let mock = MockLLMProvider::new();
 
-// Criar agent com mock
+// Create agent with mock
 let agent = CodeAgent::new(Box::new(mock), AgentConfig::default());
 
-// Executar tarefa (não chama LLM real)
+// Execute task (doesn't call real LLM)
 let result = agent.execute_task(
     "Test PRD".to_string(),
     "Test task".to_string(),
@@ -337,22 +337,22 @@ assert_eq!(result.content, "Mock LLM response - for testing purposes");
 assert_eq!(result.tokens_used, 100);
 ```
 
-## Anti-padrões
+## Anti-patterns
 
-### NUNCA FAZER
+### NEVER DO
 
-**1. Não truncar contexto**
+**1. Not truncate context**
 ```rust
-// ❌ ERRADO - Contexto pode crescer infinitamente
+// ❌ WRONG - Context can grow infinitely
 pub async fn execute_task(&self, prd: String, task: String, context: Vec<String>) -> Result {
     let request = LLMRequest {
-        context,  // usa todo o contexto sem truncar!
+        context,  // uses all context without truncating!
         ...
     };
     ...
 }
 
-// ✅ CERTO - Sempre truncar
+// ✅ CORRECT - Always truncate
 let truncated_context = self.build_truncated_context(context);
 let request = LLMRequest {
     context: truncated_context,
@@ -360,12 +360,12 @@ let request = LLMRequest {
 };
 ```
 
-**2. Não aplicar timeout**
+**2. Not apply timeout**
 ```rust
-// ❌ ERRADO - Request pode bloquear indefinidamente
+// ❌ WRONG - Request can block indefinitely
 let llm_response = self.provider.complete(&request).await?;
 
-// ✅ CERTO - Aplicar timeout
+// ✅ CORRECT - Apply timeout
 let llm_response = tokio::time::timeout(
     Duration::from_secs(self.config.timeout_seconds),
     self.provider.complete(&request)
@@ -374,27 +374,27 @@ let llm_response = tokio::time::timeout(
 .map_err(|_| AgentError::Timeout(self.config.timeout_seconds))??;
 ```
 
-**3. Ignorar exit codes de comandos**
+**3. Ignore command exit codes**
 ```rust
-// ❌ ERRADO - Não verifica se comando falhou
+// ❌ WRONG - Doesn't check if command failed
 self.execute_in_container(&[command]).await?;
 
-// ✅ CERTO - Checar exit code
+// ✅ CORRECT - Check exit code
 let inspect = self.docker.inspect_exec(&exec_id).await?;
 if let Some(exit_code) = inspect.exit_code && exit_code != 0 {
     return Err(anyhow::anyhow!("Command failed with exit code {}", exit_code));
 }
 ```
 
-**4. Não serializar structs públicas**
+**4. Not serialize public structs**
 ```rust
-// ❌ ERRADO - Não pode persistir ou comunicar
+// ❌ WRONG - Can't persist or communicate
 pub struct AgentConfig {
     pub max_iterations: u32,
     ...
 }
 
-// ✅ CERTO - Implementar Serialize/Deserialize
+// ✅ CORRECT - Implement Serialize/Deserialize
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
     pub max_iterations: u32,
@@ -402,49 +402,49 @@ pub struct AgentConfig {
 }
 ```
 
-**5. Usar provider específico em vez de trait**
+**5. Use specific provider instead of trait**
 ```rust
-// ❌ ERRADO - Acoplamento à implementação específica
+// ❌ WRONG - Coupled to specific implementation
 fn execute_with_claude(&self, claude: ClaudeProvider) -> Result { ... }
 
-// ✅ CERTO - Usar trait abstrato
+// ✅ CORRECT - Use abstract trait
 fn execute_with_provider(&self, provider: &dyn LLMProviderTrait) -> Result { ... }
 ```
 
-**6. Hardcode IDs de modelos**
+**6. Hardcode model IDs**
 ```rust
-// ❌ ERRADO - Dificil trocar modelo
+// ❌ WRONG - Hard to change model
 let client = Client::builder()
     .model(Model::Claude35Sonnet20241022)  // hardcoded!
     .build()?;
 
-// ✅ CERTO - Passar como parâmetro ou config
+// ✅ CORRECT - Pass as parameter or config
 impl ClaudeProvider {
     pub fn new(api_key: String, model: Model) -> anyhow::Result<Self> {
         let client = Client::builder()
-            .model(model)  // configurável!
+            .model(model)  // configurable!
             .build()?;
         ...
     }
 }
 ```
 
-**7. Parsear JSON sem tratamento de erro**
+**7. Parse JSON without error handling**
 ```rust
-// ❌ ERRADO - panic em JSON inválido
+// ❌ WRONG - Panics on invalid JSON
 let tasks: Vec<SuggestedTask> = serde_json::from_str(json_str).unwrap();
 
-// ✅ CERTO - Tratar erro silenciosamente
+// ✅ CORRECT - Handle error silently
 let tasks = serde_json::from_str::<Vec<SuggestedTask>>(json_str).ok();
 ```
 
-**8. Assumir que tags existem**
+**8. Assume tags exist**
 ```rust
-// ❌ ERRADO - panic se tags não existem
+// ❌ WRONG - Panics if tags don't exist
 let start = content.find("<TASKS>").unwrap();
 let end = content.find("</TASKS>").unwrap();
 
-// ✅ CERTO - Retornar None se tags faltam
+// ✅ CORRECT - Return None if tags missing
 pub fn parse_suggested_tasks(content: &str) -> Option<Vec<SuggestedTask>> {
     let start_idx = content.find("<TASKS>")?;
     let end_idx = content.find("</TASKS>")?;
@@ -452,7 +452,7 @@ pub fn parse_suggested_tasks(content: &str) -> Option<Vec<SuggestedTask>> {
 }
 ```
 
-## Dependências
+## Dependencies
 
 ### Dependencies (Cargo.toml)
 
@@ -479,20 +479,20 @@ async-openai = "0.28"                   # OpenAI
 
 ### Internal Dependencies
 
-- `ralph-models` → Nenhuma (crate independente)
-- `ralph-repositories` → Nenhuma
-- `ralph-agent` → `ralph-models` (tipos compartilhados, se necessário)
+- `ralph-models` → None (independent crate)
+- `ralph-repositories` → None
+- `ralph-agent` → `ralph-models` (shared types, if needed)
 
-### Downstreams (quem depende deste crate)
+### Downstreams (who depends on this crate)
 
-- `ralph-services` → Usa CodeAgent para orquestrar loops Ralph
-- `ralph-server` → Usa via ralph-services (não direto)
+- `ralph-services` → Uses CodeAgent to orchestrate Ralph loops
+- `ralph-server` → Uses via ralph-services (not direct)
 
-## Componentes Principais
+## Main Components
 
 ### LLMProviderTrait
 
-Trait que todos os providers implementam:
+Trait that all providers implement:
 
 ```rust
 #[async_trait]
@@ -501,14 +501,14 @@ pub trait LLMProviderTrait: Send + Sync {
 }
 ```
 
-**Providers implementados:**
+**Implemented providers:**
 - `ClaudeProvider` → Anthropic Claude (via `anthropic_rust`)
 - `OpenAIProvider` → OpenAI GPT (via `async-openai`)
-- **TODO**: `AmpProvider` → Sourcegraph Amp (não implementado)
+- **TODO**: `AmpProvider` → Sourcegraph Amp (not implemented)
 
 ### CodeAgent
 
-Orchestrador principal:
+Main orchestrator:
 
 ```rust
 pub struct CodeAgent {
@@ -524,16 +524,16 @@ impl CodeAgent {
 }
 ```
 
-**Responsabilidades:**
-- Gerenciar provider LLM
-- Truncar contexto automaticamente
-- Aplicar timeout
-- Construir prompts
-- Retornar resultados estruturados
+**Responsibilities:**
+- Manage LLM provider
+- Automatically truncate context
+- Apply timeout
+- Build prompts
+- Return structured results
 
 ### AgentConfig
 
-Configuração do agent:
+Agent configuration:
 
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -546,29 +546,29 @@ pub struct AgentConfig {
 
 ### LLMRequest / LLMResponse
 
-Estruturas de comunicação com LLM:
+LLM communication structures:
 
 ```rust
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LLMRequest {
     pub prd: String,              // Product Requirements Document
-    pub task: String,             // Task atual
-    pub context: Vec<String>,      // Histórico de iterações
-    pub max_tokens: Option<usize>, // Limite de tokens
+    pub task: String,             // Current task
+    pub context: Vec<String>,      // Iteration history
+    pub max_tokens: Option<usize>, // Token limit
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LLMResponse {
-    pub content: String,               // Conteúdo gerado
-    pub tokens_used: u32,              // Tokens usados
-    pub suggested_tasks: Vec<SuggestedTask>, // Tasks do LLM
-    pub commands: Vec<String>,         // Comandos para executar
+    pub content: String,               // Generated content
+    pub tokens_used: u32,              // Tokens used
+    pub suggested_tasks: Vec<SuggestedTask>, // Tasks from LLM
+    pub commands: Vec<String>,         // Commands to execute
 }
 ```
 
 ### ExecutionContext
 
-Execução de comandos em containers Docker:
+Docker container command execution:
 
 ```rust
 pub struct ExecutionContext {
@@ -586,16 +586,16 @@ impl ExecutionContext {
 }
 ```
 
-**Características:**
-- Timeout de 300s por comando
-- Checa exit code
-- Decodifica output UTF-8
-- Suporta env vars customizadas
-- Working directory configurável
+**Features:**
+- 300s timeout per command
+- Checks exit code
+- Decodes output UTF-8
+- Supports custom env vars
+- Configurable working directory
 
 ### Tool Trait
 
-Interface para tools usados pelo agent:
+Interface for tools used by agent:
 
 ```rust
 pub trait Tool {
@@ -605,21 +605,21 @@ pub trait Tool {
 }
 ```
 
-**Tools implementados:**
-- `FileTool` → Operações de arquivo (read, write, list)
-- `CommandTool` → Execução de comandos shell
+**Implemented tools:**
+- `FileTool` → File operations (read, write, list)
+- `CommandTool` → Shell command execution
 
-**Nota**: Tools atualmente retornam placeholders. Integração completa com `ExecutionContext` pendente.
+**Note**: Tools currently return placeholders. Full integration with `ExecutionContext` pending.
 
-## Testes
+## Tests
 
 ### Unit Tests
 
 ```bash
-# Rodar todos os testes
+# Run all tests
 cargo test --package ralph-agent
 
-# Rodar testes de um módulo específico
+# Run tests for specific module
 cargo test --package ralph-agent agent
 cargo test --package ralph-agent provider
 cargo test --package ralph-agent executor
@@ -628,147 +628,147 @@ cargo test --package ralph-agent tools
 
 ### Integration Tests
 
-Tests que requerem Docker são marcados com `#[ignore]`:
+Tests requiring Docker are marked with `#[ignore]`:
 
 ```bash
-# Rodar integration tests (requer Docker rodando)
+# Run integration tests (requires Docker running)
 cargo test --package ralph-agent -- --ignored
 ```
 
 ### Mocks
 
-`MockLLMProvider` para testes sem chamar APIs reais:
+`MockLLMProvider` for testing without calling real APIs:
 
 ```rust
 let mock = MockLLMProvider::new();
-// Opcional: adicionar delay para testar timeout
+// Optional: add delay to test timeout
 let mock = MockLLMProvider::new().with_delay(2000);
 ```
 
-## Armadilhas
+## Pitfalls
 
-### Confusões Comuns
+### Common Confusions
 
-**1. Context Truncation não é um erro**
+**1. Context Truncation is not an error**
 
 ```rust
-// Quando contexto excede 100 entradas, truncamento é NORMAL
-// Um warning é logado, mas não é um erro
+// When context exceeds 100 entries, truncation is NORMAL
+// A warning is logged, but it's not an error
 warn!(
     "Context truncated from {} to {} entries (dropped {} oldest entries)",
     original_len, MAX_CONTEXT_ENTRIES, original_len - MAX_CONTEXT_ENTRIES
 );
 
-// Isso é uma FEATURE, não um bug!
+// This is a FEATURE, not a bug!
 ```
 
-**2. Tags de parsing são opcionais**
+**2. Parsing tags are optional**
 
 ```rust
-// LLM não PRECISA retornar <TASKS> ou <CMD> tags
-// parse_suggested_tasks() retorna None se tags não existem
-// parse_commands() retorna None se tags não existem
+// LLM doesn't NEED to return <TASKS> or <CMD> tags
+// parse_suggested_tasks() returns None if tags don't exist
+// parse_commands() returns None if tags don't exist
 
-// Ambos são Option<T> e podem ser None
-// Não assuma que sempre terão valores
+// Both are Option<T> and can be None
+// Don't assume they will always have values
 ```
 
-**3. Providers podem falhar inesperadamente**
+**3. Providers can fail unexpectedly**
 
 ```rust
-// APIs de LLM podem:
+// LLM APIs can:
 // - Rate limit (429)
 // - Timeout
-// - Retornar JSON inválido
-// - Ficar offline
+// - Return invalid JSON
+// - Go offline
 
-// Sempre use ? para propagar erros
+// Always use ? to propagate errors
 let response = provider.complete(&request).await?;
-// ^^^ Qualquer erro é propagado
+// ^^^ Any error is propagated
 ```
 
-**4. Docker containers precisam estar rodando**
+**4. Docker containers must be running**
 
 ```rust
-// ExecutionContext assume que:
-// 1. Docker daemon está rodando
-// 2. Container existe e está rodando
-// 3. Container tem /bin/sh
+// ExecutionContext assumes:
+// 1. Docker daemon is running
+// 2. Container exists and is running
+// 3. Container has /bin/sh
 
-// Se não, execute_in_container() vai falhar
+// If not, execute_in_container() will fail
 ```
 
-**5. Tools não são async (ainda)**
+**5. Tools are not async (yet)**
 
 ```rust
-// Tool trait não é async
+// Tool trait is not async
 fn execute(&self, args: &[&str]) -> ToolResult;
 
-// Integração com ExecutionContext (que é async)
-// está planejada mas não implementada
+// Integration with ExecutionContext (which is async)
+// is planned but not implemented
 
-// Por enquanto, tools retornam placeholders
+// For now, tools return placeholders
 ```
 
-### Comportamentos Inesperados
+### Unexpected Behaviors
 
-**1. Timeout é aplicado pelo agent, não pelo provider**
+**1. Timeout is applied by agent, not provider**
 
 ```rust
-// O agent aplica timeout via tokio::time::timeout
+// Agent applies timeout via tokio::time::timeout
 tokio::time::timeout(Duration::from_secs(config.timeout_seconds), ...)
 
-// O provider não sabe sobre timeout
-// Pode continuar processando após timeout
+// Provider doesn't know about timeout
+// May continue processing after timeout
 ```
 
-**2. Tokens usados podem variar entre providers**
+**2. Tokens used may vary between providers**
 
 ```rust
-// Cada provider conta tokens de forma diferente:
+// Each provider counts tokens differently:
 // - Claude: input_tokens + output_tokens
 // - OpenAI: total_tokens
 
-// Valores não são diretamente comparáveis entre providers
+// Values are not directly comparable between providers
 ```
 
-**3. SuggestedTasks têm priority field**
+**3. SuggestedTasks have priority field**
 
 ```rust
 pub struct SuggestedTask {
     pub title: String,
     pub description: String,
-    pub priority: i32,  // Maior = mais prioritária
+    pub priority: i32,  // Higher = more priority
 }
 
-// Priority não é usado internamente por ralph-agent
-// É responsabilidade de ralph-services priorizar tasks
+// Priority is not used internally by ralph-agent
+// It's ralph-services' responsibility to prioritize tasks
 ```
 
-**4. Commands extraídos não são executados automaticamente**
+**4. Extracted commands are not executed automatically**
 
 ```rust
-// LLMResponse inclui commands:
+// LLMResponse includes commands:
 pub struct LLMResponse {
     pub commands: Vec<String>,
     ...
 }
 
-// Mas ralph-agent NÃO os executa
-// É responsabilidade de ralph-services executar via ExecutionContext
+// But ralph-agent does NOT execute them
+// It's ralph-services' responsibility to execute via ExecutionContext
 ```
 
-**5. Context entries são strings simples**
+**5. Context entries are simple strings**
 
 ```rust
-// Context é Vec<String>, não struct rica
+// Context is Vec<String>, not rich struct
 pub context: Vec<String>
 
-// Cada entrada é uma string de iteração anterior
-// Não há metadata ou timestamps
+// Each entry is a string from previous iteration
+// No metadata or timestamps
 ```
 
-## Configurações
+## Configuration
 
 ### Environment Variables
 
@@ -793,29 +793,29 @@ AgentConfig {
 
 MAX_CONTEXT_ENTRIES: 100
 
-ExecutionContext command timeout: 300 seconds (5 minutos)
+ExecutionContext command timeout: 300 seconds (5 minutes)
 ```
 
-## Downlinks (Contexto Adicional)
+## Downlinks (Additional Context)
 
-**Para entender melhor:**
-- `/AGENTS.md` - Arquitetura geral do projeto
-- `/ralph-models/AGENTS.md` - Modelos de dados compartilhados
-- `/ralph-services/AGENTS.md` - Como CodeAgent é usado na orquestração de loops
-- `/ralph-repositories/AGENTS.md` - Persistência de iterações e tasks
+**For better understanding:**
+- `/AGENTS.md` - General project architecture
+- `/ralph-models/AGENTS.md` - Shared data models
+- `/ralph-services/AGENTS.md` - How CodeAgent is used in loop orchestration
+- `/ralph-repositories/AGENTS.md` - Iteration and task persistence
 
 ## Roadmap
 
-### Pendências
+### Pending Items
 
-1. **AmpProvider** → Sourcegraph Amp não implementado
-2. **Tools async integration** → Integrar Tool trait com ExecutionContext
-3. **Streaming responses** → Suporte a streaming de respostas LLM
-4. **Tool calling** → Implementar function calling nativo (não tags)
-5. **Context window management** → Tokens-aware truncation (baseado em tokens, não entradas)
-6. **Circuit breaker** → Proteção contra rate limits de API
+1. **AmpProvider** → Sourcegraph Amp not implemented
+2. **Tools async integration** → Integrate Tool trait with ExecutionContext
+3. **Streaming responses** → Support LLM response streaming
+4. **Tool calling** → Implement native function calling (not tags)
+5. **Context window management** → Tokens-aware truncation (based on tokens, not entries)
+6. **Circuit breaker** → Protection against API rate limits
 
 ---
 
-**Última atualização:** 2026-01-18
-**Versão:** 1.0
+**Last updated:** 2026-01-18
+**Version:** 1.0

@@ -1,22 +1,22 @@
 # Ralph Repositories - Intent Layer
 
-## Propósito
+## Purpose
 
-Este crate fornece a camada de acesso a banco de dados para o Ralph Loop Manager. Implementa o padrão Repository para abstrair operações de database usando SQLx com queries type-safe.
+This crate provides the database access layer for Ralph Loop Manager. It implements the Repository pattern to abstract database operations using SQLx with type-safe queries.
 
-**O que esta área faz:**
-- Gerencia conexão com banco de dados (SQLite pool)
-- Executa migrations automaticamente ao iniciar
-- Fornece repositories para cada modelo (User, Loop, Task, Iteration, File)
-- Implementa queries type-safe com SQLx
-- Valida constraints de unicidade e foreign keys
+**What this area does:**
+- Manages database connection (SQLite pool)
+- Automatically runs migrations on startup
+- Provides repositories for each model (User, Loop, Task, Iteration, File)
+- Implements type-safe queries with SQLx
+- Validates uniqueness and foreign key constraints
 
-**O que esta área NÃO faz:**
-- Não contém lógica de negócio (isso é responsabilidade de `ralph-services`)
-- Não valida regras complexas (somente constraints de DB)
-- Não lida com HTTP requests/responses
+**What this area does NOT do:**
+- Does not contain business logic (that's `ralph-services`' responsibility)
+- Does not validate complex rules (only DB constraints)
+- Does not handle HTTP requests/responses
 
-## Estrutura
+## Structure
 
 ```
 ralph-repositories/
@@ -26,86 +26,86 @@ ralph-repositories/
 ├── task.rs           # TaskRepository
 ├── iteration.rs      # IterationRepository
 ├── file.rs           # FileRepository
-└── lib.rs           # Re-export de todos os repositories
+└── lib.rs           # Re-export of all repositories
 ```
 
-## Invariantes Críticos
+## Critical Invariants
 
 ### SQLx Type-Safe Queries
 
-**SEMPRE** use queries SQLx type-safe (`query!`, `query_as!`, etc.):
+**ALWAYS** use SQLx type-safe queries (`query!`, `query_as!`, etc.):
 
 ```rust
-// ✅ CERTO - Query type-safe (validado em compile-time)
+// ✅ CORRECT - Type-safe query (validated at compile-time)
 sqlx::query_as!(
     User,
     "SELECT * FROM users WHERE username = ?",
     username
 ).fetch_one(&pool).await?
 
-// ❌ ERRADO - Query insegura (SQL injection risk)
+// ❌ WRONG - Unsafe query (SQL injection risk)
 sqlx::query(&format!(
     "SELECT * FROM users WHERE username = '{}'",
     username
 ))
 ```
 
-**Por que isso é crítico:**
-- SQLx valida queries contra o schema em compile-time
-- Se a tabela mudar, o código NÃO compila
-- Previne SQL injection
-- Garante tipos corretos
+**Why this is critical:**
+- SQLx validates queries against schema at compile-time
+- If table changes, code DOESN'T compile
+- Prevents SQL injection
+- Ensures correct types
 
 ### Database Pragmas (SQLite)
 
 ```rust
-foreign_keys=ON          // FK constraints ativadas
-journal_mode=WAL         // Write-Ahead Logging para concorrência
-synchronous=NORMAL        // Balance entre segurança e performance
-cache_size=64MB          // Cache maior para performance
-auto_vacuum=INCREMENTAL  // VACUUM automático
+foreign_keys=ON          // FK constraints enabled
+journal_mode=WAL         // Write-Ahead Logging for concurrency
+synchronous=NORMAL        // Balance between safety and performance
+cache_size=64MB          // Larger cache for performance
+auto_vacuum=INCREMENTAL  // Automatic VACUUM
 ```
 
 ### Connection Pool
 
 ```rust
-// Repository deve ter clone barato (Arc<T>)
+// Repository must have cheap clone (Arc<T>)
 #[derive(Clone)]
 pub struct UserRepository {
-    pool: Pool<Sqlite>,  // Clone compartilha o pool
+    pool: Pool<Sqlite>,  // Clone shares the pool
 }
 
-// Nunca criar múltiplos pools:
+// Never create multiple pools:
 // ❌ let pool1 = Database::new(&url).await?.pool();
 // ❌ let pool2 = Database::new(&url).await?.pool();
 
-// ✅ Criar UMA vez e compartilhar via Arc:
+// ✅ Create ONCE and share via Arc:
 let pool = Arc::new(Database::new(&url).await?.pool());
 let user_repo = UserRepository::new(pool.clone());
 let loop_repo = LoopRepository::new(pool.clone());
 ```
 
-## Padrões de Uso
+## Usage Patterns
 
-### Inicializar Database
+### Initialize Database
 
 ```rust
 use ralph_repositories::Database;
 
-// Cria pool, aplica migrations, verifica pragmas
+// Creates pool, applies migrations, checks pragmas
 let db = Database::new("sqlite:ralph.db").await?;
 
-// Obter pool para repositories
+// Get pool for repositories
 let pool = db.pool();
 ```
 
-### Criar Repository
+### Create Repository
 
 ```rust
 use ralph_repositories::UserRepository;
 
 let user_repo = UserRepository::new(pool.clone());
-// UserRepository implementou Clone para compartilhar pool
+// UserRepository implemented Clone to share pool
 ```
 
 ### Query Patterns
@@ -113,7 +113,7 @@ let user_repo = UserRepository::new(pool.clone());
 #### SELECT Single
 
 ```rust
-// Buscar por username (retorna Option)
+// Find by username (returns Option)
 let user = user_repo
     .find_by_username("alice")
     .await?;
@@ -122,7 +122,7 @@ if let Some(user) = user {
     println!("Found user: {}", user.username);
 }
 
-// Buscar por ID (retorna Result com NotFound se não existe)
+// Find by ID (returns Result with NotFound if doesn't exist)
 let user = user_repo
     .find_by_id(&user_id)
     .await?;
@@ -131,12 +131,12 @@ let user = user_repo
 #### SELECT Multiple
 
 ```rust
-// Listar loops de um usuário
+// List user's loops
 let loops = loop_repo
     .find_by_owner(&user_id)
     .await?;
 
-// Listar tasks com filtro de status
+// List tasks with status filter
 let pending_tasks = task_repo
     .find_by_loop_and_status(&loop_id, TaskStatus::Pending)
     .await?;
@@ -145,7 +145,7 @@ let pending_tasks = task_repo
 #### INSERT
 
 ```rust
-// Criar novo usuário
+// Create new user
 let create_user = CreateUser {
     username: "alice".to_string(),
     email: "alice@example.com".to_string(),
@@ -153,13 +153,13 @@ let create_user = CreateUser {
 };
 
 let user = user_repo.create(create_user).await?;
-// user.id é UUID v4 gerado
+// user.id is generated UUID v4
 ```
 
 #### UPDATE
 
 ```rust
-// Atualizar loop (status, current_iteration, container_id)
+// Update loop (status, current_iteration, container_id)
 let updated_loop = loop_repo
     .update_status(&loop_id, LoopStatus::Running, Some(container_id), 0)
     .await?;
@@ -168,14 +168,14 @@ let updated_loop = loop_repo
 #### DELETE
 
 ```rust
-// Deletar loop (CASCADE deleta tasks, iterations, files)
+// Delete loop (CASCADE deletes tasks, iterations, files)
 loop_repo.delete(&loop_id).await?;
 
-// Deletar task
+// Delete task
 task_repo.delete(&task_id).await?;
 ```
 
-### Transaction Support (quando necessário)
+### Transaction Support (when needed)
 
 ```rust
 use sqlx::Acquire;
@@ -191,13 +191,13 @@ pool.begin().await?.transaction(|tx| {
 
 ### Row Mapping
 
-Quando o DB retorna tipos diferentes do model:
+When DB returns different types from model:
 
 ```rust
-// DB retorna status como String, model usa LoopStatus enum
+// DB returns status as String, model uses LoopStatus enum
 struct LoopRow {
     status: String,  // "running", "paused", etc
-    // ... outros campos
+    // ... other fields
 }
 
 impl From<LoopRow> for Loop {
@@ -210,17 +210,17 @@ impl From<LoopRow> for Loop {
 }
 ```
 
-## Anti-padrões
+## Anti-patterns
 
-### NUNCA FAZER
+### NEVER DO
 
-**1. Queries com string formatting**
+**1. Queries with string formatting**
 ```rust
-// ❌ ERRADO - SQL injection
+// ❌ WRONG - SQL injection
 let query = format!("SELECT * FROM users WHERE username = '{}'", username);
 sqlx::query(&query).fetch_one(&pool).await?;
 
-// ✅ CERTO - Parameterized query
+// ✅ CORRECT - Parameterized query
 sqlx::query_as!(
     User,
     "SELECT * FROM users WHERE username = ?",
@@ -228,53 +228,53 @@ sqlx::query_as!(
 ).fetch_one(&pool).await?;
 ```
 
-**2. Ignorar erros de banco**
+**2. Ignore database errors**
 ```rust
-// ❌ ERRADO - Swallowing errors
+// ❌ WRONG - Swallowing errors
 let _ = repo.create(user).await;
 
-// ✅ CERTO - Propagando erros com context
+// ✅ CORRECT - Propagating errors with context
 repo.create(user).await
     .context("Failed to create user in database")?;
 ```
 
-**3. Criar múltiplos pools**
+**3. Create multiple pools**
 ```rust
-// ❌ ERRADO - Multiple connections
+// ❌ WRONG - Multiple connections
 let pool1 = Arc::new(pool.clone());
 let user_repo1 = UserRepository::new(pool1);
 
-let pool2 = Arc::new(pool.clone());  // NOVO POOL!
+let pool2 = Arc::new(pool.clone());  // NEW POOL!
 let user_repo2 = UserRepository::new(pool2);
 
-// ✅ CERTO - Compartilhar o MESMO pool
+// ✅ CORRECT - Share the SAME pool
 let pool = Arc::new(pool.clone());
 let user_repo1 = UserRepository::new(pool.clone());
 let user_repo2 = UserRepository::new(pool.clone());
 ```
 
-**4. Queries sem validation em compile-time**
+**4. Queries without compile-time validation**
 ```rust
-// ❌ ERRADO - query! macro não valida
-sqlx::query("SELECT * FROM users")  // Se users não existe, só falha em runtime
+// ❌ WRONG - query! macro doesn't validate
+sqlx::query("SELECT * FROM users")  // If users doesn't exist, only fails at runtime
 
-// ✅ CERTO - query_as! valida em compile-time
-sqlx::query_as!(User, "SELECT * FROM users")  // Se users não existe, NÃO compila
+// ✅ CORRECT - query_as! validates at compile-time
+sqlx::query_as!(User, "SELECT * FROM users")  // If users doesn't exist, DOESN'T compile
 ```
 
-**5. Não usar Result/Option corretamente**
+**5. Not using Result/Option correctly**
 ```rust
-// ❌ ERRADO - unwrap() pode panic
+// ❌ WRONG - unwrap() can panic
 let user = repo.find_by_username("alice")
     .await?
-    .unwrap();  // PANIC se não existir
+    .unwrap();  // PANIC if doesn't exist
 
-// ✅ CERTO - Tratar Option corretamente
+// ✅ CORRECT - Handle Option correctly
 let user = repo.find_by_username("alice").await?;
 if let Some(user) = user {
-    // usar user
+    // use user
 } else {
-    // usuário não encontrado
+    // user not found
 }
 ```
 
@@ -282,7 +282,7 @@ if let Some(user) = user {
 
 ### query_as!
 
-Retorna uma struct específica:
+Returns a specific struct:
 
 ```rust
 sqlx::query_as!(
@@ -294,14 +294,14 @@ sqlx::query_as!(
 ).fetch_one(&pool).await?
 ```
 
-**Use quando:**
-- Você sabe exatamente quais colunas retorna
-- Quer type-safety completo
-- Query SELECT com resultado estruturado
+**Use when:**
+- You know exactly which columns it returns
+- Want complete type-safety
+- SELECT query with structured result
 
 ### query!
 
-Retorna uma tupla com os resultados:
+Returns a tuple with results:
 
 ```rust
 let (id, username, email): (String, String, String) = sqlx::query!(
@@ -310,14 +310,14 @@ let (id, username, email): (String, String, String) = sqlx::query!(
 ).fetch_one(&pool).await?;
 ```
 
-**Use quando:**
-- Precisa de apenas algumas colunas
-- Query customizada
+**Use when:**
+- Need only some columns
+- Custom query
 - Aggregations (COUNT, SUM, etc)
 
 ### execute!
 
-Para INSERT, UPDATE, DELETE (sem resultados):
+For INSERT, UPDATE, DELETE (no results):
 
 ```rust
 sqlx::query!(
@@ -346,14 +346,14 @@ migrations/
 
 `{number}_{description}.sql`
 
-- `001_initial.sql` - Schema inicial
-- `002_add_loop_container_id.sql` - Adicionar campo
-- `003_add_task_priority_index.sql` - Índice
+- `001_initial.sql` - Initial schema
+- `002_add_loop_container_id.sql` - Add field
+- `003_add_task_priority_index.sql` - Index
 
 ### Running Migrations
 
 ```rust
-// No Database::new(), migrations rodam automaticamente:
+// In Database::new(), migrations run automatically:
 sqlx::migrate!("../migrations")
     .run(&pool)
     .await
@@ -363,22 +363,22 @@ sqlx::migrate!("../migrations")
 ### Migration Best Practices
 
 ```sql
--- ✅ CERTO - Idempotent
+-- ✅ CORRECT - Idempotent
 CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
     ...
 );
 
--- ❌ ERRADO - Falha se já existe
+-- ❌ WRONG - Fails if already exists
 CREATE TABLE users (
     id TEXT PRIMARY KEY,
     ...
 );
 
--- ✅ CERTO - Adicionar coluna se não existe
--- SQLite não suporta ALTER TABLE ... IF NOT EXISTS
--- Use migration com rollback ou verifique schema
+-- ✅ CORRECT - Add column if not exists
+-- SQLite doesn't support ALTER TABLE ... IF NOT EXISTS
+-- Use migration with rollback or check schema
 ```
 
 ## Foreign Keys
@@ -386,20 +386,20 @@ CREATE TABLE users (
 ### CASCADE Delete
 
 ```sql
--- Tasks deletados quando Loop deletado
+-- Tasks deleted when Loop deleted
 FOREIGN KEY (loop_id) REFERENCES loops(id) ON DELETE CASCADE
 
--- Iterations deletados quando Task deletado
+-- Iterations deleted when Task deleted
 FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 
--- Files deletados quando Iteration deletado
+-- Files deleted when Iteration deleted
 FOREIGN KEY (iteration_id) REFERENCES iterations(id) ON DELETE CASCADE
 ```
 
 ### SET NULL
 
 ```sql
--- parent_task_id NULL quando parent deletado
+-- parent_task_id NULL when parent deleted
 FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE SET NULL
 ```
 
@@ -408,17 +408,17 @@ FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE SET NULL
 ### Performance Critical Queries
 
 ```sql
--- Buscar loops de usuário
+-- Find user's loops
 CREATE INDEX idx_loops_owner_id ON loops(owner_id);
 
--- Filtrar tasks por loop + status
+-- Filter tasks by loop + status
 CREATE INDEX idx_tasks_loop_status ON tasks(loop_id, status);
 
--- Ordenar tasks por priority
+-- Order tasks by priority
 CREATE INDEX idx_tasks_status_priority ON tasks(status, priority DESC);
 ```
 
-## Dependências
+## Dependencies
 
 ### Dependencies (Cargo.toml)
 
@@ -430,30 +430,30 @@ thiserror = "2.0"
 ralph-models = { path = "../ralph-models" }
 ```
 
-### Downstreams (quem depende deste crate)
+### Downstreams (who depends on this crate)
 
-- `ralph-services` → Usa repositories para lógica de negócio
-- `ralph-server` → Usa repositories em handlers (via services)
+- `ralph-services` → Uses repositories for business logic
+- `ralph-server` → Uses repositories in handlers (via services)
 
-## Testes
+## Tests
 
 ### Integration Tests
 
 ```bash
-# Rodar todos os testes
+# Run all tests
 cargo test --package ralph-repositories
 
-# Rodar com database em memória (mais rápido)
+# Run with in-memory database (faster)
 cargo test --package ralph-repositories
 
-# Rodar um teste específico
+# Run specific test
 cargo test --package ralph-repositories test_database_initialization
 ```
 
 ### Test Database
 
 ```rust
-// Tests usam memory database
+// Tests use memory database
 #[tokio::test]
 async fn test_database_initialization() -> Result<()> {
     let db = Database::new("sqlite::memory:").await?;
@@ -461,32 +461,32 @@ async fn test_database_initialization() -> Result<()> {
 }
 ```
 
-## Armadilhas
+## Pitfalls
 
-### Confusões Comuns
+### Common Confusions
 
 **1. Compile-Time Validation**
 
 ```rust
-// Se você mudar o nome de uma coluna na migration,
-// TODAS as queries SQLx que usam essa coluna NÃO vão compilar!
+// If you change a column name in migration,
+// ALL SQLx queries using that column will NOT compile!
 
-// Isso é uma FEATURE, não um bug:
+// This is a FEATURE, not a bug:
 sqlx::query_as!(
     User,
-    "SELECT id, username, email FROM users WHERE user_name = ?"  // user_name NÃO existe
-    // ^^^ ERRO EM COMPILE-TIME!
+    "SELECT id, username, email FROM users WHERE user_name = ?"  // user_name doesn't exist
+    // ^^^ COMPILE-TIME ERROR!
 )
 ```
 
-**2. String vs &str em queries**
+**2. String vs &str in queries**
 
 ```rust
-// ✅ CERTO - Tanto String quanto &str funcionam
+// ✅ CORRECT - Both String and &str work
 let user_id: String = "uuid".to_string();
 sqlx::query!("SELECT * FROM users WHERE id = ?", user_id)
 
-// ✅ CERTO - &str também funciona
+// ✅ CORRECT - &str also works
 let user_id = "uuid";
 sqlx::query!("SELECT * FROM users WHERE id = ?", user_id)
 ```
@@ -494,13 +494,13 @@ sqlx::query!("SELECT * FROM users WHERE id = ?", user_id)
 **3. Row Ordering**
 
 ```rust
-// query_as! exige que as colunas estejam na mesma ordem da struct
+// query_as! requires columns to be in same order as struct
 sqlx::query_as!(
-    User,  // struct User tem: id, username, email, ...
-    "SELECT email, username, id FROM users"  // ❌ ERRADO - ordem diferente!
+    User,  // struct User has: id, username, email, ...
+    "SELECT email, username, id FROM users"  // ❌ WRONG - different order!
 )
 
-// ✅ CERTO - mesma ordem
+// ✅ CORRECT - same order
 sqlx::query_as!(
     User,
     "SELECT id, username, email FROM users"
@@ -510,7 +510,7 @@ sqlx::query_as!(
 **4. Nullable Columns**
 
 ```rust
-// Se coluna é NULLABLE no DB, use Option
+// If column is NULLABLE in DB, use Option
 struct LoopRow {
     pub description: Option<String>,  // ✓ Nullable
     pub name: String,               // ✓ NOT NULL
@@ -520,24 +520,24 @@ struct LoopRow {
 **5. DateTime Format**
 
 ```rust
-// SQLx espera DateTime<Utc> para colunas timestamp
-// Se você tentar String, vai dar erro:
+// SQLx expects DateTime<Utc> for timestamp columns
+// If you try String, will error:
 sqlx::query!("INSERT INTO users (created_at) VALUES (?)", "2026-01-18")
-// ❌ ERRO - esperando DateTime, não String
+// ❌ ERROR - expecting DateTime, not String
 
-// ✅ CERTO - Use DateTime<Utc>
+// ✅ CORRECT - Use DateTime<Utc>
 sqlx::query!("INSERT INTO users (created_at) VALUES (?)", Utc::now())
 ```
 
-## Downlinks (Contexto Adicional)
+## Downlinks (Additional Context)
 
-**Para entender melhor:**
-- `/AGENTS.md` - Arquitetura geral e padrões do projeto
-- `/ralph-models/AGENTS.md` - Modelos que estes repositories persistem
-- `/ralph-services/AGENTS.md` - Como estes repositories são usados na lógica de negócio
-- `/migrations/AGENTS.md` - Database schema e migrations
+**For better understanding:**
+- `/AGENTS.md` - General architecture and project patterns
+- `/ralph-models/AGENTS.md` - Models that these repositories persist
+- `/ralph-services/AGENTS.md` - How these repositories are used in business logic
+- `/migrations/AGENTS.md` - Database schema and migrations
 
 ---
 
-**Última atualização:** 2026-01-18
-**Versão:** 1.0
+**Last updated:** 2026-01-18
+**Version:** 1.0

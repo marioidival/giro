@@ -1,37 +1,37 @@
 # Ralph Server - Templates Layer
 
-## Propósito
+## Purpose
 
-Este diretório contém todos os templates HTML usados pelo Ralph Loop Manager. Templates são renderizados pelo Askama (template engine Rust) e usam HTMX + Tailwind CSS para criar uma interface web moderna e reativa.
+This directory contains all HTML templates used by the Ralph Loop Manager. Templates are rendered by Askama (Rust template engine) and use HTMX + Tailwind CSS to create a modern, reactive web interface.
 
-**O que esta área faz:**
-- Define estrutura visual da aplicação web
-- Implementa formulários com submissão assíncrona via HTMX
-- Fornece navegação SPA (Single Page Application) sem JavaScript complexo
-- Renderiza páginas HTML dinâmicas a partir de dados Rust
-- Gerencia estados visuais (loading, errors, success)
-- Implementa design system consistente com Tailwind CSS
+**What this area does:**
+- Defines visual structure of web application
+- Implements forms with asynchronous submission via HTMX
+- Provides SPA (Single Page Application) navigation without complex JavaScript
+- Renders dynamic HTML pages from Rust data
+- Manages visual states (loading, errors, success)
+- Implements consistent design system with Tailwind CSS
 
-**O que esta área NÃO faz:**
-- Não contém lógica de negócio (isso é responsabilidade de handlers e services)
-- Não acessa banco de dados diretamente (recebe dados via template structs)
-- Não processa requisições HTTP (isso é responsabilidade dos handlers)
-- Não executa loops ou gerencia containers (backend responsibility)
+**What this area does NOT do:**
+- Does not contain business logic (responsibility of handlers and services)
+- Does not access database directly (receives data via template structs)
+- Does not process HTTP requests (responsibility of handlers)
+- Does not execute loops or manage containers (backend responsibility)
 
-## Estrutura
+## Structure
 
 ```
 ralph-server/templates/
-├── base.html              # Template base com navbar, footer e CDN includes
+├── base.html              # Base template with navbar, footer and CDN includes
 ├── auth/
-│   ├── login.html         # Formulário de login
-│   └── register.html      # Formulário de registro
+│   ├── login.html         # Login form
+│   └── register.html      # Register form
 └── loops/
-    ├── index.html         # Lista de loops com paginação
-    └── new.html           # Formulário de criação de loop
+    ├── index.html         # Loop list with pagination
+    └── new.html           # Create loop form
 ```
 
-### Template Structs (em `src/templates/mod.rs`)
+### Template Structs (in `src/templates/mod.rs`)
 
 ```rust
 #[derive(Template)]
@@ -60,23 +60,23 @@ pub struct LoopListTemplate {
 }
 ```
 
-## Invariantes Críticos
+## Critical Invariants
 
-### Sempre Herdar de base.html
+### Always Extend base.html
 
-**TODO** template deve estender `base.html` (exceto o próprio):
+**ALL** templates must extend `base.html` (except itself):
 
 ```html
-<!-- ✅ CERTO -->
+<!-- ✅ CORRECT -->
 {% extends "base.html" %}
 
 {% block content %}
 <div class="...">
-  <!-- conteúdo -->
+  <!-- content -->
 </div>
 {% endblock %}
 
-<!-- ❌ ERRADO - Sem base.html -->
+<!-- ❌ WRONG - Without base.html -->
 <!DOCTYPE html>
 <html>
 <head>...</head>
@@ -84,63 +84,63 @@ pub struct LoopListTemplate {
 </html>
 ```
 
-**Por que é crítico:**
-- Garante consistência de HTML structure
-- Inclui automaticamente Tailwind e HTMX CDNs
-- Mantém navbar/footer consistentes
-- Facilita atualizações globais
+**Why this is critical:**
+- Ensures HTML structure consistency
+- Automatically includes Tailwind and HTMX CDNs
+- Maintains consistent navbar/footer
+- Facilitates global updates
 
-### CSRF Token Obrigatório
+### CSRF Token Mandatory
 
-**TODO** template com formulário ou mutations deve incluir CSRF token:
+**ALL** templates with forms or mutations must include CSRF token:
 
 ```html
-<!-- 1. Meta tag para JavaScript -->
+<!-- 1. Meta tag for JavaScript -->
 {% block head %}
 <meta name="csrf-token" content="{{ csrf_token }}">
 {% endblock %}
 
-<!-- 2. Hidden input em forms -->
+<!-- 2. Hidden input in forms -->
 <form hx-post="/api/loops">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <!-- outros campos -->
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+  <!-- other fields -->
 </form>
 ```
 
-**Por que é crítico:**
-- Proteção contra CSRF attacks
-- Middleware CSRF no backend valida este token
-- Sem token, mutations (POST/PUT/DELETE) falham com 403
+**Why this is critical:**
+- Protection against CSRF attacks
+- Backend CSRF middleware validates this token
+- Without token, mutations (POST/PUT/DELETE) fail with 403
 
-### HTMX Attributes Consistentes
+### Consistent HTMX Attributes
 
-Use HTMX attributes de forma consistente:
+Use HTMX attributes consistently:
 
 ```html
-<!-- ✅ CERTO - POST com redirect (form submission padrão) -->
+<!-- ✅ CORRECT - POST with redirect (default form submission) -->
 <form hx-post="/api/loops" hx-boost="true">
   <!-- ... -->
 </form>
 
-<!-- ✅ CERTO - POST sem swap (AJAX com redirect manual) -->
+<!-- ✅ CORRECT - POST without swap (AJAX with manual redirect) -->
 <form hx-post="/api/auth/login" hx-swap="none">
   <!-- ... -->
 </form>
 
-<!-- ✅ CERTO - GET para carregar conteúdo dinâmico -->
+<!-- ✅ CORRECT - GET to load dynamic content -->
 <button hx-get="/loops/new" hx-target="#main-content" hx-swap="innerHTML">
   New Loop
 </button>
 
-<!-- ❌ ERRADO - misturando conceitos -->
+<!-- ❌ WRONG - mixing concepts -->
 <form hx-get="/api/loops">
-  <!-- Forms devem usar POST para mutations -->
+  <!-- Forms should use POST for mutations -->
 </form>
 ```
 
-### Tailwind Classes Padrão
+### Standard Tailwind Classes
 
-Use classes Tailwind consistentes para design system:
+Use consistent Tailwind classes for design system:
 
 ```html
 <!-- Primary buttons -->
@@ -153,12 +153,12 @@ Use classes Tailwind consistentes para design system:
   Cancel
 </button>
 
-<!-- Inputs padrão -->
+<!-- Standard inputs -->
 <input type="text" class="mt-1 focus:ring-indigo-500 focus:border-indigo-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" placeholder="...">
 
 <!-- Cards/containers -->
 <div class="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
-  <!-- conteúdo -->
+  <!-- content -->
 </div>
 
 <!-- Success alerts -->
@@ -184,12 +184,12 @@ Use classes Tailwind consistentes para design system:
 </div>
 ```
 
-### Responsividade Sempre
+### Always Responsive
 
-**TODO** elemento interativo deve ser responsivo:
+**ALL** interactive elements must be responsive:
 
 ```html
-<!-- ✅ CERTO - Responsivo -->
+<!-- ✅ CORRECT - Responsive -->
 <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
   <div class="sm:col-span-6">
     <!-- full width mobile, full width desktop -->
@@ -199,19 +199,19 @@ Use classes Tailwind consistentes para design system:
   </div>
 </div>
 
-<!-- ❌ ERRADO - Não responsivo -->
+<!-- ❌ WRONG - Not responsive -->
 <div class="grid grid-cols-6 gap-4">
   <div class="col-span-3">
-    <!-- quebra em mobile -->
+    <!-- breaks on mobile -->
   </div>
 </div>
 ```
 
-## Padrões de Uso
+## Usage Patterns
 
-### Criar Novo Template
+### Creating New Template
 
-**1. Definir template struct em `src/templates/mod.rs`:**
+**1. Define template struct in `src/templates/mod.rs`:**
 
 ```rust
 #[derive(Template)]
@@ -224,7 +224,7 @@ pub struct LoopDetailTemplate {
 }
 ```
 
-**2. Criar arquivo de template:**
+**2. Create template file:**
 
 ```html
 {% extends "base.html" %}
@@ -237,12 +237,12 @@ pub struct LoopDetailTemplate {
 
 {% block content %}
 <div class="px-4 py-6 sm:px-0">
-  <!-- conteúdo -->
+  <!-- content -->
 </div>
 {% endblock %}
 ```
 
-**3. Usar no handler:**
+**3. Use in handler:**
 
 ```rust
 pub async fn loop_detail(
@@ -253,7 +253,7 @@ pub async fn loop_detail(
     let logged_in = !user_id.is_empty();
     let csrf_token = CsrfToken::generate().to_string();
 
-    // buscar loop e tasks...
+    // fetch loop and tasks...
 
     let template = LoopDetailTemplate {
         logged_in,
@@ -272,33 +272,33 @@ pub async fn loop_detail(
 }
 ```
 
-### HTMX - Navegação SPA
+### HTMX - SPA Navigation
 
-Use `hx-boost="true"` para navegação automática:
+Use `hx-boost="true"` for automatic navigation:
 
 ```html
-<!-- Links normais -->
+<!-- Regular links -->
 <a href="/loops" class="...">
   Loops
 </a>
 
-<!-- Boosted: HTMX intercepta o clique e faz fetch assíncrono -->
+<!-- Boosted: HTMX intercepts click and does async fetch -->
 <a href="/loops" class="..." hx-boost="true">
   Loops
 </a>
 ```
 
-### HTMX - Atualização Parcial
+### HTMX - Partial Updates
 
-Use `hx-target` e `hx-swap` para atualizar partes específicas:
+Use `hx-target` and `hx-swap` to update specific parts:
 
 ```html
-<!-- Container alvo -->
+<!-- Target container -->
 <div id="loop-details">
-  <!-- conteúdo atual -->
+  <!-- current content -->
 </div>
 
-<!-- Botão que atualiza apenas o container -->
+<!-- Button that updates only the container -->
 <button
   hx-get="/loops/{{ loop.id }}/details"
   hx-target="#loop-details"
@@ -308,62 +308,62 @@ Use `hx-target` e `hx-swap` para atualizar partes específicas:
 </button>
 ```
 
-Valores de `hx-swap`:
-- `innerHTML`: Substitui conteúdo do target (padrão)
-- `outerHTML`: Substitui o próprio target
-- `beforebegin`: Insere antes do target
-- `afterbegin`: Insere como primeiro filho
-- `beforeend`: Insere como último filho
-- `afterend`: Insere depois do target
-- `none`: Não modifica DOM (útil para POST com redirect)
+Values of `hx-swap`:
+- `innerHTML`: Replaces target content (default)
+- `outerHTML`: Replaces the target itself
+- `beforebegin`: Inserts before target
+- `afterbegin`: Inserts as first child
+- `beforeend`: Inserts as last child
+- `afterend`: Inserts after target
+- `none`: Does not modify DOM (useful for POST with redirect)
 
-### HTMX - Submissão de Formulários
+### HTMX - Form Submission
 
-Padrões de submissão de formulários:
+Form submission patterns:
 
 ```html
-<!-- Padrão 1: POST com boost (full page reload se sucesso) -->
+<!-- Pattern 1: POST with boost (full page reload if success) -->
 <form hx-post="/api/auth/register" hx-boost="true">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <!-- campos -->
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+  <!-- fields -->
   <button type="submit">Submit</button>
 </form>
 
-<!-- Padrão 2: POST sem swap (handler faz redirect manual) -->
+<!-- Pattern 2: POST without swap (handler does manual redirect) -->
 <form hx-post="/api/auth/login" hx-swap="none">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <!-- campos -->
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+  <!-- fields -->
   <button type="submit">Login</button>
 </form>
 
-<!-- Padrão 3: POST com target (atualização parcial) -->
+<!-- Pattern 3: POST with target (partial update) -->
 <form hx-post="/api/loops/{{ id }}/update" hx-target="#loop-status" hx-swap="outerHTML">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <!-- campos -->
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}" />
+  <!-- fields -->
   <button type="submit">Update</button>
 </form>
 ```
 
 ### HTMX - Loading States
 
-Use `hx-indicator` para indicadores de loading:
+Use `hx-indicator` for loading indicators:
 
 ```html
-<!-- Indicador de loading -->
+<!-- Loading indicator -->
 <div id="loading" class="hidden">
   <svg class="animate-spin h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 0 12h4zm2 5.291A7.962 7.962 0 014 8-8V0C5.373 0 0 0 12h4zm2 5.291A7.962 7.962 0 014 8-8V0C5.373 0 0 0 12h4zm2 5.291A7.962 7.962 0 0 14 8-8V0C5.373 0 0 0 12h4zm2 5.291A7.962 7.962 0 0 14 8-8V0C5.373 0 0 0 12h4zm2 5.291A7.962 7.962 0 0 14 8-8V0C5.373 0 0 0 12h4zm2 5.291A7.962 7.962 0 0 14 8-8V0C5.373 0 0 0 12h4zm2 5.291A7.962 7.962 0 0 14 8-8V0C5.373 0 0 0 12h4z"></path>
   </svg>
 </div>
 
-<!-- Botão com indicador -->
+<!-- Button with indicator -->
 <button hx-get="/api/loops" hx-indicator="#loading">
   Refresh
 </button>
 ```
 
-### Askama - Condicionais e Loops
+### Askama - Conditionals and Loops
 
 ```html
 <!-- If/Else -->
@@ -398,19 +398,19 @@ Use `hx-indicator` para indicadores de loading:
 </tr>
 {% endfor %}
 
-<!-- Loop com índice -->
+<!-- Loop with index -->
 {% for (index, loop) in loops.iter().enumerate() %}
 <div>{{ index + 1 }}. {{ loop.name }}</div>
 {% endfor %}
 ```
 
-### Askama - Filtros e Modificadores
+### Askama - Filters and Modifiers
 
 ```html
 <!-- String slicing -->
-<p>{{ loop.created_at[..10] }}</p>  <!-- Primeiros 10 caracteres -->
+<p>{{ loop.created_at[..10] }}</p>  <!-- First 10 characters -->
 
-<!-- Formatação condicional -->
+<!-- Conditional formatting -->
 <span class="inline-flex rounded-full px-2 text-xs font-semibold leading-5
   {% if loop.status == "running" %} bg-green-100 text-green-800
   {% elif loop.status == "paused" %} bg-yellow-100 text-yellow-800
@@ -419,23 +419,23 @@ Use `hx-indicator` para indicadores de loading:
 </span>
 ```
 
-### Exibir Erros de Validação
+### Displaying Validation Errors
 
 ```html
-<!-- No template struct -->
+<!-- In template struct -->
 pub struct RegisterTemplate<'a> {
     pub logged_in: bool,
     pub csrf_token: String,
     pub errors: &'a [String],
 }
 
-<!-- No template -->
+<!-- In template -->
 {% if !errors.is_empty() %}
 <div class="rounded-md bg-red-50 p-4">
   <div class="flex">
     <div class="flex-shrink-0">
       <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414L10 11.414l1.293 1.293a1 1 0-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
       </svg>
     </div>
     <div class="ml-3">
@@ -453,10 +453,10 @@ pub struct RegisterTemplate<'a> {
 {% endif %}
 ```
 
-### Paginação
+### Pagination
 
 ```html
-<!-- No template struct -->
+<!-- In template struct -->
 pub struct LoopListTemplate {
     pub page: u32,
     pub total_pages: u32,
@@ -465,7 +465,7 @@ pub struct LoopListTemplate {
     // ...
 }
 
-<!-- No template -->
+<!-- In template -->
 {% if total_pages > 1 %}
 <nav class="mt-6 flex items-center justify-between border-t border-gray-200 px-4 sm:px-0">
   <div class="-mt-2 flex w-0 flex-1">
@@ -495,30 +495,30 @@ pub struct LoopListTemplate {
 {% endif %}
 ```
 
-## Anti-padrões
+## Anti-patterns
 
-### NUNCA FAZER
+### NEVER DO
 
-**1. JavaScript complexo para coisas simples**
+**1. Complex JavaScript for simple things**
 
 ```html
-<!-- ❌ ERRADO - JavaScript manual -->
+<!-- ❌ WRONG - Manual JavaScript -->
 <button onclick="fetch('/api/loops').then(...)">Refresh</button>
 
-<!-- ✅ CERTO - HTMX faz o fetch -->
+<!-- ✅ CORRECT - HTMX does the fetch -->
 <button hx-get="/api/loops">Refresh</button>
 ```
 
-**2. Esquecer CSRF token em forms**
+**2. Forgetting CSRF token in forms**
 
 ```html
-<!-- ❌ ERRADO - Sem CSRF -->
+<!-- ❌ WRONG - No CSRF -->
 <form hx-post="/api/loops">
   <input type="text" name="name">
   <button>Submit</button>
 </form>
 
-<!-- ✅ CERTO - Com CSRF -->
+<!-- ✅ CORRECT - With CSRF -->
 <form hx-post="/api/loops">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="text" name="name">
@@ -526,24 +526,24 @@ pub struct LoopListTemplate {
 </form>
 ```
 
-**3. Misturar hx-get/hx-post incorretamente**
+**3. Mixing hx-get/hx-post incorrectly**
 
 ```html
-<!-- ❌ ERRADO - GET para mutation -->
+<!-- ❌ WRONG - GET for mutation -->
 <button hx-get="/api/loops" hx-post="true">
   Create Loop
 </button>
 
-<!-- ✅ CERTO - POST para mutation -->
+<!-- ✅ CORRECT - POST for mutation -->
 <button hx-post="/api/loops">
   Create Loop
 </button>
 ```
 
-**4. Não usar base.html**
+**4. Not using base.html**
 
 ```html
-<!-- ❌ ERRADO - HTML duplicado -->
+<!-- ❌ WRONG - Duplicated HTML -->
 <!DOCTYPE html>
 <html>
 <head>
@@ -556,38 +556,38 @@ pub struct LoopListTemplate {
 </body>
 </html>
 
-<!-- ✅ CERTO - Herdar de base.html -->
+<!-- ✅ CORRECT - Extend from base.html -->
 {% extends "base.html" %}
 {% block content %}
 <main>...</main>
 {% endblock %}
 ```
 
-**5. Classes Tailwind inconsistentes**
+**5. Inconsistent Tailwind classes**
 
 ```html
-<!-- ❌ ERRADO - Misturando estilos -->
+<!-- ❌ WRONG - Mixing styles -->
 <button class="btn btn-primary bg-blue-500 rounded">Save</button>
 
-<!-- ✅ CERTO - Classes Tailwind padrão -->
+<!-- ✅ CORRECT - Standard Tailwind classes -->
 <button class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">Save</button>
 ```
 
-**6. Não tratar estados de loading**
+**6. Not handling loading states**
 
 ```html
-<!-- ❌ ERRADO - Sem feedback -->
+<!-- ❌ WRONG - No feedback -->
 <button hx-get="/api/loops">Refresh</button>
 
-<!-- ✅ CERTO - Com indicador -->
+<!-- ✅ CORRECT - With indicator -->
 <div id="loading" class="hidden">Loading...</div>
 <button hx-get="/api/loops" hx-indicator="#loading">Refresh</button>
 ```
 
-**7. Elementos não responsivos**
+**7. Non-responsive elements**
 
 ```html
-<!-- ❌ ERRADO - Quebra em mobile -->
+<!-- ❌ WRONG - Breaks on mobile -->
 <div class="grid grid-cols-4 gap-4">
   <div>Item 1</div>
   <div>Item 2</div>
@@ -595,7 +595,7 @@ pub struct LoopListTemplate {
   <div>Item 4</div>
 </div>
 
-<!-- ✅ CERTO - Responsivo -->
+<!-- ✅ CORRECT - Responsive -->
 <div class="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-4">
   <div>Item 1</div>
   <div>Item 2</div>
@@ -604,15 +604,15 @@ pub struct LoopListTemplate {
 </div>
 ```
 
-## Dependências
+## Dependencies
 
-### Libraries Usadas
+### Libraries Used
 
 ```toml
 # Template engine
 askama = "0.15"  # Compile-time template rendering
 
-# Styling (via CDN no base.html)
+# Styling (via CDN in base.html)
 tailwindcss = "3.4"  # CSS framework (CDN)
 htmx = "1.9.10"      # Hypermedia-driven interactions (CDN)
 ```
@@ -629,59 +629,59 @@ htmx = "1.9.10"      # Hypermedia-driven interactions (CDN)
 
 ### Internal Dependencies
 
-- `src/templates/mod.rs` - Template structs que mapeiam para arquivos HTML
-- Handlers em `src/handlers/` - Criam e preenchem template structs
-- Models em `ralph-models` - Dados exibidos nos templates
+- `src/templates/mod.rs` - Template structs mapping to HTML files
+- Handlers in `src/handlers/` - Create and populate template structs
+- Models in `ralph-models` - Data displayed in templates
 
-## Armadilhas
+## Pitfalls
 
-### Confusões Comuns
+### Common Confusions
 
 **1. hx-target vs hx-swap**
 
 ```html
-<!-- hx-target: ONDE inserir o resultado -->
+<!-- hx-target: WHERE to insert result -->
 <button hx-get="/api/data" hx-target="#result">Load</button>
 <div id="result">
-  <!-- HTML será inserido AQUI -->
+  <!-- HTML will be inserted HERE -->
 </div>
 
-<!-- hx-swap: COMO inserir o resultado -->
+<!-- hx-swap: HOW to insert result -->
 <button hx-get="/api/data" hx-target="#result" hx-swap="outerHTML">Load</button>
 <div id="result">
-  <!-- Este elemento SERÁ SUBSTITUÍDO pelo resultado -->
+  <!-- This element WILL BE REPLACED by the result -->
 </div>
 ```
 
 **2. hx-boost vs hx-get**
 
 ```html
-<!-- hx-boost: torna links/forms HTMX-aware automaticamente -->
+<!-- hx-boost: makes links/forms HTMX-aware automatically -->
 <a href="/loops" hx-boost="true">
   Loops
 </a>
-<!-- O clique ainda navega para /loops, mas via HTMX (se suportado) -->
+<!-- The click still navigates to /loops, but via HTMX (if supported) -->
 
-<!-- hx-get: força requisição assíncrona -->
+<!-- hx-get: forces async request -->
 <button hx-get="/loops">
   Load Loops
 </button>
-<!-- O clique faz GET assíncrono, injeta response -->
+<!-- The click does async GET, injects response -->
 ```
 
 **3. logged_in vs user_id**
 
 ```rust
-// Template struct tem logged_in (bool)
+// Template struct has logged_in (bool)
 pub struct LoopListTemplate {
     pub logged_in: bool,
     pub csrf_token: String,
 }
 
-// Handler preenche logged_in
+// Handler populates logged_in
 let logged_in = !user_id.is_empty();
 let template = LoopListTemplate {
-    logged_in,  // true se user_id não vazio
+    logged_in,  // true if user_id is not empty
     csrf_token,
     loops,
 };
@@ -690,75 +690,75 @@ let template = LoopListTemplate {
 **4. Template struct vs Template path**
 
 ```rust
-// O caminho do template deve corresponder ao arquivo
+// Template path must correspond to file
 #[derive(Template)]
-#[template(path = "loops/index.html")]  // ← deve ser "loops/index.html"
+#[template(path = "loops/index.html")]  // ← must be "loops/index.html"
 pub struct LoopListTemplate { ... }
-//                  ↑ corresponde a templates/loops/index.html
+//                  ↑ corresponds to templates/loops/index.html
 ```
 
-### Comportamentos Inesperados
+### Unexpected Behaviors
 
-**1. HTMX boost pode quebrar se response não for HTML**
+**1. HTMX boost breaks if response is not HTML**
 
 ```rust
-// ❌ ERRADO - Handler retorna JSON em rota boosted
+// ❌ WRONG - Handler returns JSON in boosted route
 pub async fn list_loops() -> Json<ListLoopsResponse> {
     Json(response)
 }
 
-// ✅ CERTO - Handler retorna HTML
-pub async fn list_loops() -> (StatusCode, Html<String>) {
+// ✅ CORRECT - Handler returns HTML
+pub async fn list_loops_page() -> (StatusCode, Html<String>) {
     (StatusCode::OK, Html(html))
 }
 ```
 
-**2. Askama valida templates em compile-time**
+**2. Askama validates templates at compile-time**
 
 ```rust
-// Se template tem erro sintático, código NÃO compila
+// If template has syntax error, code DOES NOT compile
 // Error: template syntax error in templates/loops/new.html at line 42
 
-// Se variável não existe, NÃO compila
+// If variable doesn't exist, DOES NOT compile
 // Error: no field `missing_field` on struct `LoopFormTemplate`
 ```
 
-**3. hx-swap="none" ainda faz request**
+**3. hx-swap="none" still makes request**
 
 ```html
-<!-- O request é feito, mas DOM não é modificado -->
+<!-- Request is made, but DOM is not modified -->
 <form hx-post="/api/login" hx-swap="none">
-  <!-- Handler deve fazer redirect manual -->
+  <!-- Handler must do redirect manually -->
 </form>
 
-// Handler Rust
+// Rust handler
 pub async fn login(...) -> Redirect {
-    // Precisa redirect manualmente
+    // Needs manual redirect
     Redirect::to("/loops")
 }
 ```
 
-**4. Tailwind CDN não para produção**
+**4. Tailwind CDN not for production**
 
 ```html
-<!-- ❌ NÃO usar em produção -->
+<!-- ❌ DO NOT use in production -->
 <script src="https://cdn.tailwindcss.com"></script>
 
-<!-- ✅ Em produção, usar build process -->
+<!-- ✅ In production, use build process -->
 <!-- npm install -D tailwindcss -->
 <!-- npx tailwindcss init -->
 ```
 
-## Downlinks (Contexto Adicional)
+## Downlinks (Additional Context)
 
-**Para entender melhor:**
-- `/ralph-server/AGENTS.md` - Como handlers usam templates
+**To understand better:**
+- `/ralph-server/AGENTS.md` - How handlers use templates
 - `/ralph-server/src/templates/mod.rs` - Template structs implementation
-- `/ralph-server/src/handlers/` - Handlers que criam e renderizam templates
-- `https://htmx.org/docs` - HTMX documentation oficial
-- `https://tailwindcss.com/docs` - Tailwind CSS documentation oficial
+- `/ralph-server/src/handlers/` - Handlers that create and render templates
+- `https://htmx.org/docs` - HTMX official documentation
+- `https://tailwindcss.com/docs` - Tailwind CSS official documentation
 
 ---
 
-**Última atualização:** 2026-01-18
-**Versão:** 1.0
+**Last updated:** 2026-01-18
+**Version:** 1.0

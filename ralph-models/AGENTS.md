@@ -1,23 +1,23 @@
 # Ralph Models - Intent Layer
 
-## Propósito
+## Purpose
 
-Este crate contém todos os modelos de dados (data models) usados no Ralph Loop Manager. São estruturas puras, sem dependências externas, que definem a forma dos dados que circulam pela aplicação.
+This crate contains all data models used in Ralph Loop Manager. They are pure structures without external dependencies that define the shape of data flowing through the application.
 
-**O que esta área faz:**
-- Define modelos de domínio (User, Loop, Task, Iteration, File)
-- Fornece DTOs para criação/edição (CreateUser, CreateLoop, CreateTask)
-- Implementa enums de status com conversão de/para string
-- Validações básicas e testes unitários dos modelos
+**What this area does:**
+- Defines domain models (User, Loop, Task, Iteration, File)
+- Provides DTOs for creation/editing (CreateUser, CreateLoop, CreateTask)
+- Implements status enums with to/from string conversion
+- Basic validations and unit tests for models
 
-**O que esta área NÃO faz:**
-- Não acessa banco de dados (isso é responsabilidade de `ralph-repositories`)
-- Não contém lógica de negócio (isso é responsabilidade de `ralph-services`)
-- Não lida com HTTP requests/responses (isso é responsabilidade de `ralph-server`)
+**What this area does NOT do:**
+- Does not access database (that's `ralph-repositories`' responsibility)
+- Does not contain business logic (that's `ralph-services`' responsibility)
+- Does not handle HTTP requests/responses (that's `ralph-server`' responsibility)
 
-## Estrutura de Modelos
+## Model Structure
 
-### Modelos Principais
+### Main Models
 
 ```
 ralph-models/
@@ -25,11 +25,11 @@ ralph-models/
 ├── loop_.rs       # Loop, CreateLoop, LoopStatus
 ├── task.rs        # Task, CreateTask, TaskStatus
 ├── iteration.rs   # Iteration, IterationStatus
-├── file.rs        # File (artefatos gerados)
-└── lib.rs        # Re-export de todos os modelos
+├── file.rs        # File (generated artifacts)
+└── lib.rs        # Re-export of all models
 ```
 
-### Hierarquia de Relacionamentos
+### Relationship Hierarchy
 
 ```
 User
@@ -38,45 +38,45 @@ User
         │   └─ Iteration (task_id)
         │         └─ File (iteration_id)
         │
-        └─ Iteration (loop_id, direto para logs globais)
+        └─ Iteration (loop_id, direct for global logs)
 ```
 
-## Invariantes Críticos
+## Critical Invariants
 
-### Regras de Business
+### Business Rules
 
 **User:**
-- `id`: UUID v4 gerado automaticamente
-- `username`: Deve ser único (validado em repository)
-- `email`: Deve ser único (validado em repository)
-- `password_hash`: Hash bcrypt (nunca armazene senha em texto claro)
+- `id`: UUID v4 generated automatically
+- `username`: Must be unique (validated in repository)
+- `email`: Must be unique (validated in repository)
+- `password_hash`: Bcrypt hash (never store password in plain text)
 
 **Loop:**
-- `id`: UUID v4 gerado automaticamente
-- `owner_id`: Deve referenciar um User existente (FK)
-- `status`: Deve seguir máquina de estados (Created → Running → Paused → Completed/Error)
-- `container_id`: None quando não está rodando
-- `current_iteration`: Incrementado a cada iteração executada
-- `prd`: Markdown que define o contexto do projeto
+- `id`: UUID v4 generated automatically
+- `owner_id`: Must reference existing User (FK)
+- `status`: Must follow state machine (Created → Running → Paused → Completed/Error)
+- `container_id`: None when not running
+- `current_iteration`: Incremented on each executed iteration
+- `prd`: Markdown defining project context
 
 **Task:**
-- `id`: UUID v4 gerado automaticamente
-- `loop_id`: Deve referenciar um Loop existente (FK com CASCADE)
-- `status`: Deve seguir máquina de estados (Pending → InProgress → Completed/Failed/Cancelled)
-- `parent_task_id`: Para suporte a subtasks (CASCADE SET NULL)
-- `created_by`: Deve ser 'user' ou 'llm'
-- `priority`: Maior valor = mais prioritária
+- `id`: UUID v4 generated automatically
+- `loop_id`: Must reference existing Loop (FK with CASCADE)
+- `status`: Must follow state machine (Pending → InProgress → Completed/Failed/Cancelled)
+- `parent_task_id`: For subtask support (CASCADE SET NULL)
+- `created_by`: Must be 'user' or 'llm'
+- `priority`: Higher value = more priority
 
 **Iteration:**
-- `id`: UUID v4 gerado automaticamente
-- `loop_id`: Deve referenciar um Loop existente (FK)
-- `task_id`: Deve referenciar uma Task existente (FK)
-- `iteration_number`: Sequencial dentro do loop
+- `id`: UUID v4 generated automatically
+- `loop_id`: Must reference existing Loop (FK)
+- `task_id`: Must reference existing Task (FK)
+- `iteration_number`: Sequential within loop
 - `status`: Running → Completed/Error
-- `started_at`: Sempre definido ao criar iteração
-- `completed_at`: Definido quando status ≠ Running
+- `started_at`: Always set when creating iteration
+- `completed_at`: Set when status ≠ Running
 
-### Defaults Obrigatórios
+### Mandatory Defaults
 
 **CreateLoop → Loop:**
 ```rust
@@ -116,34 +116,34 @@ completed_at: None
 ### LoopStatus
 
 ```
-Created    → Estado inicial, container não existe
-Running    → Container rodando, executando iterações
-Paused      → Container pausado (docker pause)
-Completed   → Loop terminou com sucesso
-Error       → Loop terminou com erro
+Created    → Initial state, container doesn't exist
+Running    → Container running, executing iterations
+Paused      → Container paused (docker pause)
+Completed   → Loop finished successfully
+Error       → Loop finished with error
 ```
 
 ### TaskStatus
 
 ```
-Pending     → Aguardando execução
-InProgress  → Sendo executada agora
-Completed   → Execução com sucesso
-Failed      → Execução falhou
-Cancelled   → Cancelada pelo usuário
+Pending     → Waiting for execution
+InProgress  → Currently being executed
+Completed   → Execution successful
+Failed      → Execution failed
+Cancelled   → Cancelled by user
 ```
 
 ### IterationStatus
 
 ```
-Running     → Em execução
-Completed   → Completada com sucesso
-Error       → Erro durante execução
+Running     → In execution
+Completed   → Completed successfully
+Error       → Error during execution
 ```
 
-## Padrões de Uso
+## Usage Patterns
 
-### Criar um Novo Loop
+### Create a New Loop
 
 ```rust
 use ralph_models::{Loop, CreateLoop};
@@ -155,22 +155,22 @@ let create_loop = CreateLoop {
     owner_id: user_id.clone(),
     provider: "claude".to_string(),
     model: "claude-3-opus".to_string(),
-    docker_image: None,  // usa default
-    cpu_limit: None,    // usa default
-    memory_limit: None, // usa default
-    max_iterations: None,  // usa default
-    iteration_timeout: None,  // usa default
-    iteration_delay: None,  // usa default
+    docker_image: None,  // uses default
+    cpu_limit: None,    // uses default
+    memory_limit: None, // uses default
+    max_iterations: None,  // uses default
+    iteration_timeout: None,  // uses default
+    iteration_delay: None,  // uses default
     git_repo_url: None,
     git_branch_pattern: None,
 };
 
 let loop_ = Loop::new(create_loop);
-// loop_.id é um UUID v4
-// loop_.status é Created
+// loop_.id is a UUID v4
+// loop_.status is Created
 ```
 
-### Criar uma Nova Task
+### Create a New Task
 
 ```rust
 use ralph_models::{Task, CreateTask};
@@ -179,17 +179,17 @@ let create_task = CreateTask {
     loop_id: loop_id.clone(),
     title: "Add addition function".to_string(),
     description: "Implement add(a, b) -> a + b".to_string(),
-    priority: Some(5),  // alta prioridade
+    priority: Some(5),  // high priority
     parent_task_id: None,
     created_by: "user".to_string(),
 };
 
 let task = Task::new(create_task);
-// task.id é um UUID v4
-// task.status é Pending
+// task.id is a UUID v4
+// task.status is Pending
 ```
 
-### Criar uma Nova Iteration
+### Create a New Iteration
 
 ```rust
 use ralph_models::Iteration;
@@ -199,14 +199,14 @@ let iteration = Iteration::new(
     task_id.clone(),
     1,  // iteration_number
 );
-// iteration.id é um UUID v4
-// iteration.status é Running
-// iteration.started_at é agora
+// iteration.id is a UUID v4
+// iteration.status is Running
+// iteration.started_at is now
 ```
 
-### Serialização/Deserialização
+### Serialization/Deserialization
 
-Todos os modelos implementam `Serialize` e `Deserialize` do Serde:
+All models implement `Serialize` and `Deserialize` from Serde:
 
 ```rust
 use serde_json;
@@ -215,7 +215,7 @@ let json = serde_json::to_string(&loop_)?;
 let deserialized: Loop = serde_json::from_str(&json)?;
 ```
 
-### Conversão de Status
+### Status Conversion
 
 ```rust
 use ralph_models::LoopStatus;
@@ -227,49 +227,49 @@ let status_string = format!("{}", LoopStatus::Running);  // "running"
 let status = LoopStatus::from_str("running")?;
 ```
 
-## Anti-padrões
+## Anti-patterns
 
-### NUNCA FAZER
+### NEVER DO
 
-**1. Modificar modelos após criação**
+**1. Modify models after creation**
 ```rust
-// ❌ ERRADO - Violar imutabilidade
+// ❌ WRONG - Violate immutability
 let mut loop_ = Loop::new(create_loop);
-loop_.id = "custom-id".to_string();  // NÃO
+loop_.id = "custom-id".to_string();  // NO
 
-// ✅ CERTO - Criar novo loop com CreateLoop atualizado
+// ✅ CORRECT - Create new loop with updated CreateLoop
 let create_loop = CreateLoop { ... };
 let loop_ = Loop::new(create_loop);
 ```
 
-**2. Armazenar senha em texto claro**
+**2. Store password in plain text**
 ```rust
-// ❌ ERRADO
+// ❌ WRONG
 User {
-    password: "password123".to_string(),  // PERIGO
+    password: "password123".to_string(),  // DANGER
 }
 
-// ✅ CERTO
+// ✅ CORRECT
 User {
     password_hash: bcrypt::hash("password123", 12)?,
 }
 ```
 
-**3. Validações complexas em models**
+**3. Complex validations in models**
 ```rust
-// ❌ ERRADO - Models devem ser simples
+// ❌ WRONG - Models should be simple
 impl User {
     pub fn validate(&self) -> Result<(), Error> {
-        // Validações complexas
+        // Complex validations
         if self.username.len() < 3 { ... }
         if !self.email.contains('@') { ... }
     }
 }
 
-// ✅ CERTO - Validações em repository ou service
+// ✅ CORRECT - Validations in repository or service
 impl UserRepository {
     pub async fn create(&self, create_user: CreateUser) -> Result<User> {
-        // Validar antes de persistir
+        // Validate before persisting
         validate_username(&create_user.username)?;
         validate_email(&create_user.email)?;
         // ...
@@ -277,28 +277,28 @@ impl UserRepository {
 }
 ```
 
-**4. Ignorar timestamps**
+**4. Override timestamps**
 ```rust
-// ❌ ERRADO - Overriding timestamps
+// ❌ WRONG - Overriding timestamps
 let mut user = User::new(...);
-user.created_at = Utc::now() - Duration::days(1);  // NÃO
+user.created_at = Utc::now() - Duration::days(1);  // NO
 
-// ✅ CERTO - Deixar modelos definirem timestamps
-let user = User::new(...);  // created_at é Utc::now() automaticamente
+// ✅ CORRECT - Let models define timestamps
+let user = User::new(...);  // created_at is Utc::now() automatically
 ```
 
-**5. Não definir defaults corretamente**
+**5. Not define defaults correctly**
 ```rust
-// ❌ ERRADO - Opcional sem default
+// ❌ WRONG - Optional without default
 impl Loop {
     pub fn new(create_loop: CreateLoop) -> Self {
         Self {
-            cpu_limit: create_loop.cpu_limit,  // pode ser None!
+            cpu_limit: create_loop.cpu_limit,  // can be None!
         }
     }
 }
 
-// ✅ CERTO - Fornecer defaults
+// ✅ CORRECT - Provide defaults
 impl Loop {
     pub fn new(create_loop: CreateLoop) -> Self {
         Self {
@@ -308,7 +308,7 @@ impl Loop {
 }
 ```
 
-## Dependências
+## Dependencies
 
 ### Dependencies (Cargo.toml)
 
@@ -320,100 +320,100 @@ chrono = { version = "0.4", features = ["serde"] }  # DateTime<Utc>
 uuid = { version = "1.11", features = ["serde"] }  # UUID generation
 ```
 
-### Downstreams (quem depende deste crate)
+### Downstreams (who depends on this crate)
 
-- `ralph-repositories` → Usa os modelos para queries de database
-- `ralph-agent` → Usa os modelos para interação com LLM
-- `ralph-services` → Usa os modelos para lógica de negócio
-- `ralph-server` → Usa os modelos em handlers e templates
+- `ralph-repositories` → Uses models for database queries
+- `ralph-agent` → Uses models for LLM interaction
+- `ralph-services` → Uses models for business logic
+- `ralph-server` → Uses models in handlers and templates
 
-## Testes
+## Tests
 
-Cada modelo tem testes unitários abrangentes:
+Each model has comprehensive unit tests:
 
 ```bash
-# Rodar todos os testes
+# Run all tests
 cargo test --package ralph-models
 
-# Rodar testes de um modelo específico
+# Run tests for specific model
 cargo test --package ralph-models user
 cargo test --package ralph-models loop
 cargo test --package ralph-models task
 cargo test --package ralph-models iteration
 ```
 
-### Coverage Esperado
+### Expected Coverage
 
-- **User**: Geração de UUID, serialização, campos preenchidos
+- **User**: UUID generation, serialization, filled fields
 - **Loop**: Defaults, custom values, status enum, timestamps
 - **Task**: Defaults, priority, parent_task, status enum
 - **Iteration**: Creation, status enum, timestamps
 
-## Armadilhas
+## Pitfalls
 
-### Confusões Comuns
+### Common Confusions
 
-**1. UUID como String vs Uuid type**
+**1. UUID as String vs Uuid type**
 ```rust
-// Os modelos usam String para IDs para facilitar serialização
+// Models use String for IDs to facilitate serialization
 pub struct Loop {
-    pub id: String,  // String contendo UUID
+    pub id: String,  // String containing UUID
 }
 
-// Para validar se é UUID válido:
+// To validate if it's valid UUID:
 use uuid::Uuid;
 Uuid::parse_str(&loop_.id).is_ok()
 ```
 
 **2. Option vs Default**
 ```rust
-// CreateLoop usa Option para parâmetros opcionais
+// CreateLoop uses Option for optional parameters
 pub struct CreateLoop {
     pub cpu_limit: Option<i32>,
     pub memory_limit: Option<i32>,
 }
 
-// Loop usa valores concretos (com defaults aplicados)
+// Loop uses concrete values (with defaults applied)
 pub struct Loop {
-    pub cpu_limit: i32,        // sempre definido
-    pub memory_limit: i32,     // sempre definido
+    pub cpu_limit: i32,        // always defined
+    pub memory_limit: i32,     // always defined
 }
 ```
 
-**3. Status Enums não são strings**
+**3. Status Enums aren't strings**
 ```rust
-// ❌ ERRADO - Comparar com string
+// ❌ WRONG - Compare with string
 if loop_.status == "running" { ... }
 
-// ✅ CERTO - Comparar com enum
+// ✅ CORRECT - Compare with enum
 if loop_.status == LoopStatus::Running { ... }
 
-// Ou converter quando necessário
+// Or convert when needed
 let status_str = loop_.status.to_string();  // "running"
 ```
 
-**4. Timestamps são UTC**
+**4. Timestamps are UTC**
 ```rust
-// Todos os timestamps são DateTime<Utc>
+// All timestamps are DateTime<Utc>
 pub struct Loop {
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-// Para converter para local:
+// To convert to local:
 use chrono::Local;
 let local_time = loop_.created_at.with_timezone(&Local);
 ```
 
-## Downlinks (Contexto Adicional)
+## Downlinks (Additional Context)
 
-**Para entender melhor:**
-- `/AGENTS.md` - Arquitetura geral e padrões do projeto
-- `/ralph-repositories/AGENTS.md` - Como estes modelos são persistidos no banco
-- `/ralph-services/AGENTS.md` - Como estes modelos são usados na lógica de negócio
-- `/ralph-server/AGENTS.md` - Como estes modelos fluem através da API HTTP
+**For better understanding:**
+- `/AGENTS.md` - General architecture and project patterns
+- `/ralph-repositories/AGENTS.md` - How these models are persisted in database
+- `/ralph-services/AGENTS.md` - How these models are used in business logic
+- `/ralph-server/AGENTS.md` - How these models flow through HTTP API
 
 ---
 
-**Última atualização:** 2026-01-18
-**Versão:** 1.0
+**Last updated:** 2026-01-18
+**Version:** 1.0
