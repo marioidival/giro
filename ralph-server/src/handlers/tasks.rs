@@ -4,15 +4,20 @@
 //! All handlers require authentication via auth middleware and check ownership
 //! to ensure users can only access their own loop's tasks.
 
+use askama::Template;
 use axum::{
     Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
+    response::Html,
 };
 use ralph_models::CreateTask;
 use serde::{Deserialize, Serialize};
 
 use crate::handlers::auth::AppState;
+use crate::handlers::loops::LoopDetail;
+use crate::middleware::csrf::CsrfToken;
+use crate::templates::NewTaskTemplate;
 
 /// Query parameters for listing tasks with pagination.
 #[derive(Debug, Deserialize)]
@@ -555,6 +560,92 @@ pub async fn delete_task(
                 success: false,
                 message: format!("Failed to retrieve task: {}", e),
             }),
+        ),
+    }
+}
+
+/// Handles rendering the new task form page (HTML).
+///
+/// This endpoint:
+/// 1. Extracts user_id from auth middleware
+/// 2. Checks if user is logged in
+/// 3. Generates CSRF token
+/// 4. Retrieves loop by id with ownership check
+/// 5. Retrieves existing tasks for parent task dropdown
+/// 6. Renders the new task form template
+///
+/// # Arguments
+/// * `path` - Path parameters containing loop ID
+/// * `state` - The application state containing repositories
+/// * `user_id` - The authenticated user's ID (from auth middleware)
+///
+/// # Returns
+/// * `200 OK` with HTML template on success
+/// * `401 Unauthorized` if user doesn't own the loop
+/// * `404 Not Found` if loop doesn't exist
+/// * `500 Internal Server Error` for server errors
+pub async fn new_task_form(
+    State(state): State<AppState>,
+    Extension(user_id): Extension<String>,
+    Path(loop_id): Path<String>,
+) -> (StatusCode, Html<String>) {
+    let logged_in = !user_id.is_empty();
+
+    // Get loop with ownership check
+    let loop_detail = match state.loop_repository.find_by_id(&loop_id).await {
+        Ok(Some(loop_)) => {
+            if loop_.owner_id != user_id {
+                return (
+                    StatusCode::UNAUTHORIZED,
+                    Html("You do not have permission to add tasks to this loop".to_string()),
+                );
+            }
+            LoopDetail::from(loop_)
+        }
+        Ok(None) => {
+            return (StatusCode::NOT_FOUND, Html("Loop not found".to_string()));
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Html(format!("Failed to retrieve loop: {}", e)),
+            );
+        }
+    };
+
+    // Get existing tasks for parent task dropdown
+    let existing_tasks = match state.task_repository.list_by_loop(&loop_id).await {
+        Ok(task_list) => task_list
+            .into_iter()
+            .map(TaskSummary::from)
+            .collect::<Vec<_>>(),
+        Err(_e) => Vec::new(),
+    };
+
+    let csrf_token = CsrfToken::generate().to_string();
+    let loop_name = loop_detail.name.clone();
+    let empty_errors: Vec<String> = Vec::new();
+
+    // Use Box::leak for 'static lifetime required by template
+    // This is safe because the template is rendered immediately and dropped
+    let existing_tasks_static: &'static [TaskSummary] =
+        Box::leak(existing_tasks.into_boxed_slice());
+    let errors_static: &'static [String] = Box::leak(empty_errors.into_boxed_slice());
+
+    let template = NewTaskTemplate {
+        logged_in,
+        csrf_token,
+        loop_id,
+        loop_name,
+        existing_tasks: existing_tasks_static,
+        errors: errors_static,
+    };
+
+    match template.render() {
+        Ok(html) => (StatusCode::OK, Html(html)),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Html(format!("Failed to render template: {}", e)),
         ),
     }
 }

@@ -58,6 +58,17 @@ pub struct LoopDetailTemplate {
     pub tasks: Vec<TaskSummary>,
 }
 
+#[derive(Template)]
+#[template(path = "tasks/new.html")]
+pub struct NewTaskTemplate<'a> {
+    pub logged_in: bool,
+    pub csrf_token: String,
+    pub loop_id: String,
+    pub loop_name: String,
+    pub existing_tasks: &'a [TaskSummary],
+    pub errors: &'a [String],
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
