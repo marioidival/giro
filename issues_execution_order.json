@@ -342,7 +342,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-services/Cargo.toml`, `ralph-services/src/lib.rs`",
-      "commit_message": "`feat: create ralph-services crate structure`"
+      "commit_message": "`feat: create ralph-services crate structure`",
+      "status": "done"
     },
     {
       "issue_number": 34,
