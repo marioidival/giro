@@ -263,7 +263,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-agent/src/agent.rs` (part 1)",
-      "commit_message": "`feat: add CodeAgent structure and request building`"
+      "commit_message": "`feat: add CodeAgent structure and request building`",
+      "status": "done"
     },
     {
       "issue_number": 26,
