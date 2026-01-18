@@ -323,7 +323,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-agent/src/tools.rs` (part 3)",
-      "commit_message": "`feat: add CommandTool for shell command execution`"
+      "commit_message": "`feat: add CommandTool for shell command execution`",
+      "status": "done"
     },
     {
       "issue_number": 32,
