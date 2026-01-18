@@ -625,6 +625,16 @@
       "files": "`ralph-server/src/templates/mod.rs`, `ralph-server/src/handlers/loops.rs`, `ralph-server/src/router.rs`, `ralph-server/templates/base.html`, `ralph-server/templates/auth/login.html`, `ralph-server/templates/auth/register.html`, `ralph-server/templates/loops/index.html`, `ralph-server/templates/loops/new.html`, `ralph-server/tests/templates_auth.rs`",
       "commit_message": "`feat: add loop creation form template`",
       "status": "done"
+    },
+    {
+      "issue_number": 63,
+      "task_id": "3.20",
+      "title": "3.20: Create Loop Detail Template",
+      "sprint": "Sprint 3: HTTP Server & Frontend",
+      "sprint_number": 3,
+      "files": "`templates/loops/show.html`, `ralph-server/src/templates/mod.rs`, `ralph-server/src/handlers/loops.rs`, `ralph-server/src/router.rs`",
+      "commit_message": "`feat: add loop detail template with WebSocket`",
+      "status": "done"
     }
   ],
   "issues": [
@@ -645,15 +655,6 @@
       "sprint_number": 3,
       "files": "`templates/loops/new.html`",
       "commit_message": "`feat: add loop creation form template`"
-    },
-    {
-      "issue_number": 63,
-      "task_id": "3.20",
-      "title": "3.20: Create Loop Detail Template",
-      "sprint": "Sprint 3: HTTP Server & Frontend",
-      "sprint_number": 3,
-      "files": "`templates/loops/show.html`",
-      "commit_message": "`feat: add loop detail template with WebSocket`"
     },
     {
       "issue_number": 64,
