@@ -6,7 +6,10 @@ use bollard::container::{
 };
 use bollard::models::{ContainerSummary, HostConfig};
 use once_cell::sync::OnceCell;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
+
+#[cfg(test)]
+use tracing::warn;
 
 /// Global singleton Docker client instance
 pub static DOCKER: OnceCell<Docker> = OnceCell::new();
