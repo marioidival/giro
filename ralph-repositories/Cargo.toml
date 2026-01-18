@@ -11,6 +11,9 @@ uuid.workspace = true
 chrono.workspace = true
 async-trait.workspace = true
 tracing.workspace = true
+aes-gcm = "0.10"
+base64 = "0.22"
+rand = "0.8"
 
 [dev-dependencies]
 tokio.workspace = true
