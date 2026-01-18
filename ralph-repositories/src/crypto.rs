@@ -39,7 +39,7 @@ pub fn encrypt_token(plaintext: &str) -> Result<String> {
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let ciphertext = cipher
-        .encrypt(&nonce, plaintext.as_bytes())
+        .encrypt(nonce, plaintext.as_bytes())
         .map_err(|e| anyhow!("Encryption failed: {}", e))?;
 
     let mut combined = nonce.to_vec();
@@ -85,7 +85,7 @@ pub fn decrypt_token(ciphertext: &str) -> Result<String> {
     let cipher = Aes256Gcm::new(ENCRYPTION_KEY.into());
 
     let plaintext = cipher
-        .decrypt(&nonce, ciphertext_bytes)
+        .decrypt(nonce, ciphertext_bytes)
         .map_err(|e| anyhow!("Decryption failed: {}", e))?;
 
     String::from_utf8(plaintext).map_err(|e| anyhow!("UTF-8 conversion failed: {}", e))
