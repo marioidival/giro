@@ -382,7 +382,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-services/src/executor.rs` (part 1)",
-      "commit_message": "`feat: add LoopExecutor structure (start, pause)`"
+      "commit_message": "`feat: add LoopExecutor structure (start, pause)`",
+      "status": "done"
     },
     {
       "issue_number": 38,
