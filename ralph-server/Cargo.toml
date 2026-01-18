@@ -14,6 +14,7 @@ ralph-agent = { path = "../ralph-agent" }
 axum = { version = "0.8", features = ["ws", "macros"] }
 tower = { version = "0.5", features = ["full"] }
 tower-http = { version = "0.6", features = ["fs", "trace", "cors"] }
+futures-util = "0.3"
 
 # Async runtime
 tokio.workspace = true
@@ -27,6 +28,7 @@ dotenvy = "0.15"
 validator = { version = "0.20", features = ["derive"] }
 uuid.workspace = true
 chrono.workspace = true
+rand = "0.8"
 
 # Logging
 tracing.workspace = true

@@ -300,18 +300,22 @@ mod integration_tests {
         let csrf_store = CsrfTokenStore::new();
         let loop_repository = LoopRepository::new(pool.clone());
         let task_repository = TaskRepository::new(pool.clone());
-        let docker = Arc::new(ralph_services::DockerManager::new());
+
+        let docker = Arc::new(DockerManager::new());
         let agent_config = ralph_agent::agent::AgentConfig::default();
         let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config);
 
-        AppState::new(
+        let broadcast_manager = crate::websocket::BroadcastManager::new();
+
+        let state = AppState::new(
             auth_service,
             session_store.clone(),
             csrf_store,
             loop_repository,
             task_repository,
             loop_executor,
-        )
+            broadcast_manager,
+        );
     }
 
     #[tokio::test]

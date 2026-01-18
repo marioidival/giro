@@ -15,6 +15,7 @@ use ralph_services::{AuthService, LoopExecutor};
 use serde::{Deserialize, Serialize};
 
 use crate::middleware::auth::SessionStore;
+use crate::middleware::csrf::CsrfTokenStore;
 use crate::validation::{validate_email, validate_password, validate_username};
 
 /// Application state containing shared services and stores.
@@ -26,12 +27,16 @@ pub struct AppState {
     pub auth_service: AuthService,
     /// Session store for managing user sessions
     pub session_store: SessionStore,
+    /// CSRF token store for managing CSRF tokens
+    pub csrf_store: CsrfTokenStore,
     /// Loop repository for loop database operations
     pub loop_repository: LoopRepository,
     /// Task repository for task database operations
     pub task_repository: TaskRepository,
     /// Loop executor for controlling loop execution (start, pause, resume, stop)
     pub loop_executor: LoopExecutor,
+    /// Broadcast manager for WebSocket connections
+    pub broadcast_manager: crate::websocket::BroadcastManager,
 }
 
 impl AppState {
@@ -40,21 +45,27 @@ impl AppState {
     /// # Arguments
     /// * `auth_service` - The authentication service instance
     /// * `session_store` - The session store instance
+    /// * `csrf_store` - The CSRF token store instance
     /// * `loop_repository` - The loop repository instance
     /// * `loop_executor` - The loop executor instance for controlling loop execution
+    /// * `broadcast_manager` - The broadcast manager instance for WebSocket connections
     pub fn new(
         auth_service: AuthService,
         session_store: SessionStore,
+        csrf_store: CsrfTokenStore,
         loop_repository: LoopRepository,
         task_repository: TaskRepository,
         loop_executor: LoopExecutor,
+        broadcast_manager: crate::websocket::BroadcastManager,
     ) -> Self {
         Self {
             auth_service,
             session_store,
+            csrf_store,
             loop_repository,
             task_repository,
             loop_executor,
+            broadcast_manager,
         }
     }
 }

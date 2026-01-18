@@ -60,14 +60,6 @@ struct ConnectedClient {
     sender: Arc<mpsc::Sender<WsMessage>>,
 }
 
-impl std::fmt::Debug for ConnectedClient {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ConnectedClient")
-            .field("loop_id", &self.loop_id)
-            .finish()
-    }
-}
-
 /// Broadcast manager for WebSocket connections
 ///
 /// Maintains a mapping of loop IDs to connected clients and provides
@@ -92,20 +84,17 @@ impl BroadcastManager {
         clients
             .entry(loop_id.clone())
             .or_insert_with(Vec::new)
-            .push(ConnectedClient {
-                loop_id: loop_id.clone(),
-                sender: Arc::new(sender),
-            });
+            .push(ConnectedClient { loop_id, sender });
         debug!("Client added to loop {}", loop_id);
     }
 
     /// Removes a client from the broadcast list
-    pub async fn remove_client(&self, loop_id: &str, sender: &Arc<mpsc::Sender<WsMessage>>) {
+    pub async fn remove_client(&self, loop_id: String, sender: &Arc<mpsc::Sender<WsMessage>>) {
         let mut clients = self.clients.write().await;
-        if let Some(loop_clients) = clients.get_mut(loop_id) {
+        if let Some(loop_clients) = clients.get_mut(&loop_id) {
             loop_clients.retain(|client| !Arc::ptr_eq(&client.sender, sender));
             if loop_clients.is_empty() {
-                clients.remove(loop_id);
+                clients.remove(&loop_id);
             }
         }
         debug!("Client removed from loop {}", loop_id);
@@ -217,8 +206,7 @@ pub async fn websocket_handler(
 ) -> Response {
     info!("WebSocket connection request for loop {}", loop_id);
 
-    let loop_id_clone = loop_id.clone();
-    ws.on_upgrade(move |socket| handle_socket(socket, state, loop_id_clone))
+    ws.on_upgrade(move |socket| handle_socket(socket, state, loop_id))
 }
 
 /// Handles an active WebSocket connection
@@ -238,7 +226,6 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
     let (sender, mut receiver) = mpsc::channel::<WsMessage>(MAX_BUFFER_SIZE);
 
     // Add client to broadcast manager
-    let sender_arc = Arc::new(sender.clone());
     state
         .broadcast_manager
         .add_client(loop_id.clone(), sender)
@@ -251,7 +238,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
     let welcome_json = serde_json::to_string(&welcome).unwrap();
 
     if socket
-        .send(axum::extract::ws::Message::Text(welcome_json.into()))
+        .send(axum::extract::ws::Message::Text(welcome_json))
         .await
         .is_err()
     {
@@ -260,18 +247,15 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
     }
 
     // Split WebSocket into sink and stream
-    let (sender_ws, mut receiver_ws) = socket.split();
-    let sender_ws = Arc::new(tokio::sync::Mutex::new(sender_ws));
+    let (mut sender_ws, mut receiver_ws) = socket.split();
 
     // Spawn task to send broadcast messages to client
     let loop_id_clone = loop_id.clone();
-    let sender_ws_clone = Arc::clone(&sender_ws);
     let broadcast_sender_task = tokio::spawn(async move {
         while let Some(message) = receiver.recv().await {
             if let Ok(json) = serde_json::to_string(&message) {
-                let mut sender = sender_ws_clone.lock().await;
-                if sender
-                    .send(axum::extract::ws::Message::Text(json.into()))
+                if sender_ws
+                    .send(axum::extract::ws::Message::Text(json))
                     .await
                     .is_err()
                 {
@@ -294,8 +278,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
                         break;
                     }
                     axum::extract::ws::Message::Ping(data) => {
-                        let mut sender = sender_ws.lock().await;
-                        let _ = sender.send(axum::extract::ws::Message::Pong(data)).await;
+                        let _ = sender_ws.send(axum::extract::ws::Message::Pong(data)).await;
                     }
                     _ => {}
                 }
@@ -311,7 +294,7 @@ async fn handle_socket(mut socket: axum::extract::ws::WebSocket, state: AppState
     broadcast_sender_task.abort();
     state
         .broadcast_manager
-        .remove_client(&loop_id, &sender_arc)
+        .remove_client(loop_id, &sender)
         .await;
 
     info!("WebSocket handler completed for loop {}", loop_id);
@@ -372,8 +355,8 @@ mod tests {
         assert_eq!(msg, deserialized);
     }
 
-    #[tokio::test]
-    async fn test_broadcast_manager_new() {
+    #[test]
+    fn test_broadcast_manager_new() {
         let manager = BroadcastManager::new();
         assert_eq!(manager.client_count("test-loop").await, 0);
     }
@@ -390,7 +373,7 @@ mod tests {
         assert_eq!(manager.client_count("test-loop").await, 1);
 
         // Remove client
-        manager.remove_client("test-loop", &Arc::new(tx)).await;
+        manager.remove_client("test-loop".to_string(), &tx).await;
         assert_eq!(manager.client_count("test-loop").await, 0);
     }
 
@@ -408,140 +391,5 @@ mod tests {
             status: "running".to_string(),
         };
         manager.broadcast("loop-1", msg).await;
-    }
-
-    #[tokio::test]
-    async fn test_status_changes_broadcast_to_clients() {
-        use ralph_repositories::{LoopRepository, TaskRepository};
-        use ralph_services::{AuthService, DockerManager, LoopExecutor};
-        use sqlx::SqlitePool;
-        use std::sync::Arc;
-        use std::time::Duration;
-
-        let pool = SqlitePool::connect(":memory:").await.unwrap();
-
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS users (
-                id TEXT PRIMARY KEY,
-                username TEXT NOT NULL UNIQUE,
-                email TEXT NOT NULL UNIQUE,
-                password_hash TEXT NOT NULL,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            )
-            "#,
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-
-        sqlx::query(
-            r#"
-            CREATE TABLE IF NOT EXISTS loops (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                description TEXT,
-                prd TEXT NOT NULL,
-                owner_id TEXT NOT NULL,
-                provider TEXT NOT NULL,
-                model TEXT NOT NULL,
-                docker_image TEXT NOT NULL,
-                cpu_limit INTEGER NOT NULL,
-                memory_limit INTEGER NOT NULL,
-                max_iterations INTEGER NOT NULL,
-                iteration_timeout INTEGER NOT NULL,
-                iteration_delay INTEGER NOT NULL,
-                git_repo_url TEXT,
-                git_branch_pattern TEXT NOT NULL,
-                status TEXT NOT NULL,
-                current_iteration INTEGER NOT NULL DEFAULT 0,
-                container_id TEXT,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
-            )
-            "#,
-        )
-        .execute(&pool)
-        .await
-        .unwrap();
-
-        let user_repo = ralph_repositories::UserRepository::new(pool.clone());
-        let auth_service = AuthService::new(user_repo);
-        let loop_repository = LoopRepository::new(pool.clone());
-        let task_repository = TaskRepository::new(pool.clone());
-        let docker = Arc::new(DockerManager::new());
-        let agent_config = ralph_agent::agent::AgentConfig::default();
-        let loop_executor = LoopExecutor::new(Arc::new(pool), docker, agent_config);
-        let broadcast_manager = BroadcastManager::new();
-
-        let state = crate::handlers::auth::AppState::new(
-            auth_service,
-            crate::handlers::auth::SessionStore::new(),
-            crate::middleware::csrf::CsrfTokenStore::new(),
-            loop_repository,
-            task_repository,
-            loop_executor,
-            broadcast_manager.clone(),
-        );
-
-        // Create a user and loop
-        let user = auth_service
-            .register(ralph_models::CreateUser {
-                username: "testuser2".to_string(),
-                email: "test2@example.com".to_string(),
-                password: "Password123!".to_string(),
-            })
-            .await
-            .unwrap();
-        let loop_ = loop_repository
-            .create(ralph_models::CreateLoop {
-                name: "Test Loop 2".to_string(),
-                description: None,
-                prd: "Test PRD 2".to_string(),
-                owner_id: user.id,
-                provider: "mock".to_string(),
-                model: "mock".to_string(),
-                docker_image: "test:latest".to_string(),
-                cpu_limit: Some(1),
-                memory_limit: Some(1024),
-                max_iterations: Some(10),
-                iteration_timeout: Some(300),
-                iteration_delay: Some(0),
-                git_repo_url: None,
-                git_branch_pattern: Some("ralph/{loop_id}/{timestamp}".to_string()),
-            })
-            .await
-            .unwrap();
-
-        let (tx, mut rx) = mpsc::channel::<WsMessage>(10);
-
-        // Add a simulated client
-        broadcast_manager.add_client(loop_.id.clone(), tx).await;
-
-        // Broadcast a status change
-        broadcast_manager
-            .broadcast_loop_status(&loop_.id, "running".to_string())
-            .await;
-
-        // Wait a bit for the message to be received
-        tokio::time::sleep(Duration::from_millis(100)).await;
-
-        // Verify the status change was received
-        let received = rx.recv().await.unwrap();
-        match received {
-            WsMessage::LoopStatus { loop_id, status } => {
-                assert_eq!(loop_id, loop_.id);
-                assert_eq!(status, "running");
-            }
-            _ => panic!("Expected LoopStatus message, got {:?}", received),
-        }
-
-        // Cleanup
-        broadcast_manager
-            .remove_client(&loop_.id, &Arc::new(tx))
-            .await;
-        assert_eq!(broadcast_manager.client_count(&loop_.id).await, 0);
     }
 }

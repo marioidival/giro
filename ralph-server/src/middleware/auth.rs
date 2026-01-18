@@ -21,7 +21,7 @@ use uuid::Uuid;
 /// This is a simple implementation that will be replaced with tower-sessions in future sprints.
 #[derive(Clone, Debug)]
 pub struct SessionStore {
-    sessions: Arc<RwLock<HashMap<String, String>>>,
+    pub sessions: Arc<RwLock<HashMap<String, String>>>,
 }
 
 impl SessionStore {
@@ -80,7 +80,7 @@ impl Default for SessionStore {
 /// Extracts the session ID from request headers
 ///
 /// Looks for a "session" or "authorization" header. The value should be the session ID.
-fn extract_session_id(headers: &HeaderMap) -> Option<String> {
+pub fn extract_session_id(headers: &HeaderMap) -> Option<String> {
     headers
         .get("session")
         .or_else(|| headers.get("authorization"))

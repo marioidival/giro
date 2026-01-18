@@ -12,7 +12,10 @@ use std::sync::Arc;
 use tracing::{Level, info, warn};
 use tracing_subscriber::{EnvFilter, fmt};
 
-use ralph_server::{create_router, handlers::auth::AppState, middleware::auth::SessionStore};
+use ralph_server::{
+    create_router, handlers::auth::AppState, middleware::auth::SessionStore,
+    middleware::csrf::CsrfTokenStore, websocket::BroadcastManager,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -41,6 +44,7 @@ async fn main() -> Result<()> {
     let auth_service = AuthService::new(user_repo);
 
     let session_store = SessionStore::new();
+    let csrf_store = CsrfTokenStore::new();
 
     let loop_repository = LoopRepository::new(pool.clone());
     let task_repository = TaskRepository::new(pool.clone());
@@ -48,12 +52,16 @@ async fn main() -> Result<()> {
     let agent_config = AgentConfig::default();
     let loop_executor = LoopExecutor::new(Arc::new(pool), docker.clone(), agent_config);
 
+    let broadcast_manager = BroadcastManager::new();
+
     let state = AppState::new(
         auth_service,
         session_store,
+        csrf_store,
         loop_repository,
         task_repository,
         loop_executor,
+        broadcast_manager,
     );
     info!("All services initialized");
 
