@@ -61,8 +61,8 @@ impl UserRepository {
 
         sqlx::query(
             r#"
-            INSERT INTO users (id, username, email, password_hash, created_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO users (id, username, email, password_hash, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
             "#,
         )
         .bind(&user.id)
@@ -70,6 +70,7 @@ impl UserRepository {
         .bind(&user.email)
         .bind(&user.password_hash)
         .bind(user.created_at)
+        .bind(user.created_at) // updated_at same as created_at on creation
         .execute(&self.pool)
         .await
         .context("Failed to insert user into database")?;
