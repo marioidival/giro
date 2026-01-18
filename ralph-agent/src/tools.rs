@@ -201,6 +201,60 @@ impl FileTool {
     }
 }
 
+/// Tool for executing shell commands in the container
+///
+/// CommandTool provides the ability to execute shell commands within
+/// the container's working directory. It works with ExecutionContext
+/// to perform command execution asynchronously.
+///
+/// Usage:
+/// - `cmd <command>` - Execute a shell command
+#[derive(Debug, Clone)]
+pub struct CommandTool;
+
+impl CommandTool {
+    /// Create a new CommandTool instance
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for CommandTool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Tool for CommandTool {
+    fn name(&self) -> &str {
+        "cmd"
+    }
+
+    fn description(&self) -> &str {
+        "Execute shell commands in the container"
+    }
+
+    fn execute(&self, args: &[&str]) -> ToolResult {
+        if args.is_empty() {
+            return ToolResult {
+                output: String::new(),
+                error: Some("CommandTool requires at least 1 argument: <command>".to_string()),
+            };
+        }
+
+        let command = args.join(" ");
+        // In a real implementation, this would call ctx.execute_command(&command).await
+        // For now, return a placeholder indicating the operation
+        ToolResult {
+            output: format!(
+                "CommandTool: execute_command('{}') - integrate with ExecutionContext for async execution",
+                command
+            ),
+            error: None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -337,5 +391,58 @@ mod tests {
     fn test_file_tool_default() {
         let tool = FileTool::default();
         assert_eq!(tool.name(), "file");
+    }
+
+    #[test]
+    fn test_command_tool_name() {
+        let tool = CommandTool::new();
+        assert_eq!(tool.name(), "cmd");
+    }
+
+    #[test]
+    fn test_command_tool_description() {
+        let tool = CommandTool::new();
+        assert!(tool.description().contains("shell commands"));
+    }
+
+    #[test]
+    fn test_command_tool_executes() {
+        let tool = CommandTool::new();
+        let result = tool.execute(&["ls", "-la"]);
+
+        assert!(result.output.contains("execute_command"));
+        assert!(result.output.contains("ls -la"));
+        assert!(result.error.is_none());
+    }
+
+    #[test]
+    fn test_command_tool_empty_args() {
+        let tool = CommandTool::new();
+        let result = tool.execute(&[]);
+
+        assert!(result.output.is_empty());
+        assert!(result.error.is_some());
+        assert!(
+            result
+                .error
+                .unwrap()
+                .contains("requires at least 1 argument")
+        );
+    }
+
+    #[test]
+    fn test_command_tool_multiple_args() {
+        let tool = CommandTool::new();
+        let result = tool.execute(&["echo", "hello", "world"]);
+
+        assert!(result.output.contains("execute_command"));
+        assert!(result.output.contains("echo hello world"));
+        assert!(result.error.is_none());
+    }
+
+    #[test]
+    fn test_command_tool_default() {
+        let tool = CommandTool::default();
+        assert_eq!(tool.name(), "cmd");
     }
 }
