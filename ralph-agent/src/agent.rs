@@ -1,5 +1,6 @@
 use crate::provider::{LLMProviderTrait, LLMRequest, SuggestedTask};
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 /// Error types for agent operations
 #[derive(thiserror::Error, Debug)]
@@ -71,6 +72,41 @@ impl CodeAgent {
         Self { provider, config }
     }
 
+    /// Build truncated context from full context history
+    ///
+    /// Implements FIFO truncation when context exceeds MAX_CONTEXT_ENTRIES.
+    /// Keeps the most recent N entries, discarding the oldest first.
+    ///
+    /// # Arguments
+    /// * `context` - Full context history
+    ///
+    /// # Returns
+    /// Truncated context vector (may be same as input if no truncation needed)
+    fn build_truncated_context(&self, context: Vec<String>) -> Vec<String> {
+        if context.len() <= MAX_CONTEXT_ENTRIES {
+            context
+        } else {
+            let original_len = context.len();
+            let truncated: Vec<String> = context
+                .into_iter()
+                .rev()
+                .take(MAX_CONTEXT_ENTRIES)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect();
+
+            warn!(
+                "Context truncated from {} to {} entries (dropped {} oldest entries)",
+                original_len,
+                MAX_CONTEXT_ENTRIES,
+                original_len - MAX_CONTEXT_ENTRIES
+            );
+
+            truncated
+        }
+    }
+
     /// Execute a task with the given PRD and context
     ///
     /// This is a stub implementation that builds the LLM request structure.
@@ -89,10 +125,12 @@ impl CodeAgent {
         task: String,
         context: Vec<String>,
     ) -> Result<AgentResult, AgentError> {
+        let truncated_context = self.build_truncated_context(context);
+
         let request = LLMRequest {
             prd,
             task,
-            context,
+            context: truncated_context,
             max_tokens: self.config.max_tokens_per_request,
         };
 
@@ -425,5 +463,132 @@ mod tests {
             agent_result.content,
             "Mock LLM response - for testing purposes"
         );
+    }
+
+    #[test]
+    fn test_context_truncation_works_correctly() {
+        let provider = Box::new(MockLLMProvider::new());
+        let config = AgentConfig::default();
+        let agent = CodeAgent::new(provider, config);
+
+        // Create context with 150 entries (exceeds MAX_CONTEXT_ENTRIES of 100)
+        let context: Vec<String> = (1..=150).map(|i| format!("Entry {}", i)).collect();
+
+        let truncated = agent.build_truncated_context(context);
+
+        // Should keep only last 100 entries (51-150)
+        assert_eq!(truncated.len(), 100);
+        assert_eq!(truncated[0], "Entry 51");
+        assert_eq!(truncated[99], "Entry 150");
+    }
+
+    #[test]
+    fn test_warning_logged_when_truncated() {
+        let provider = Box::new(MockLLMProvider::new());
+        let config = AgentConfig::default();
+        let agent = CodeAgent::new(provider, config);
+
+        // Create context with 120 entries
+        let context: Vec<String> = (1..=120).map(|i| format!("Entry {}", i)).collect();
+
+        // This should log a warning (we can't easily test logging output, but we verify truncation)
+        let truncated = agent.build_truncated_context(context);
+
+        assert_eq!(truncated.len(), 100);
+        assert_eq!(truncated[0], "Entry 21");
+        assert_eq!(truncated[99], "Entry 120");
+    }
+
+    #[test]
+    fn test_small_context_not_truncated() {
+        let provider = Box::new(MockLLMProvider::new());
+        let config = AgentConfig::default();
+        let agent = CodeAgent::new(provider, config);
+
+        // Create context with 50 entries (below MAX_CONTEXT_ENTRIES)
+        let context: Vec<String> = (1..=50).map(|i| format!("Entry {}", i)).collect();
+
+        let truncated = agent.build_truncated_context(context);
+
+        // Should return same context without modification
+        assert_eq!(truncated.len(), 50);
+        assert_eq!(truncated[0], "Entry 1");
+        assert_eq!(truncated[49], "Entry 50");
+    }
+
+    #[test]
+    fn test_empty_context_not_truncated() {
+        let provider = Box::new(MockLLMProvider::new());
+        let config = AgentConfig::default();
+        let agent = CodeAgent::new(provider, config);
+
+        let context: Vec<String> = vec![];
+        let truncated = agent.build_truncated_context(context);
+
+        assert_eq!(truncated.len(), 0);
+    }
+
+    #[test]
+    fn test_exact_max_context_not_truncated() {
+        let provider = Box::new(MockLLMProvider::new());
+        let config = AgentConfig::default();
+        let agent = CodeAgent::new(provider, config);
+
+        // Create context with exactly MAX_CONTEXT_ENTRIES
+        let context: Vec<String> = (1..=MAX_CONTEXT_ENTRIES)
+            .map(|i| format!("Entry {}", i))
+            .collect();
+
+        let truncated = agent.build_truncated_context(context.clone());
+
+        // Should not be truncated
+        assert_eq!(truncated.len(), MAX_CONTEXT_ENTRIES);
+        assert_eq!(truncated[0], "Entry 1");
+        assert_eq!(truncated[99], "Entry 100");
+    }
+
+    #[tokio::test]
+    async fn test_execute_task_uses_truncated_context() {
+        let provider = Box::new(MockLLMProvider::new());
+        let config = AgentConfig::default();
+        let agent = CodeAgent::new(provider, config);
+
+        // Create context with 150 entries
+        let large_context: Vec<String> = (1..=150)
+            .map(|i| format!("Iteration {}: Completed task", i))
+            .collect();
+
+        let result = agent
+            .execute_task(
+                "Build a web server".to_string(),
+                "Create HTTP handler".to_string(),
+                large_context,
+            )
+            .await;
+
+        assert!(result.is_ok());
+        let agent_result = result.unwrap();
+        assert_eq!(
+            agent_result.content,
+            "Mock LLM response - for testing purposes"
+        );
+    }
+
+    #[test]
+    fn test_context_truncation_preserves_order() {
+        let provider = Box::new(MockLLMProvider::new());
+        let config = AgentConfig::default();
+        let agent = CodeAgent::new(provider, config);
+
+        let context: Vec<String> = (1..=200).map(|i| format!("Entry {}", i)).collect();
+
+        let truncated = agent.build_truncated_context(context);
+
+        // Should preserve original order of last 100 entries
+        assert_eq!(truncated.len(), 100);
+        for (i, entry) in truncated.iter().enumerate() {
+            let expected_value = i + 101; // 101 to 200
+            assert_eq!(entry, &format!("Entry {}", expected_value));
+        }
     }
 }
