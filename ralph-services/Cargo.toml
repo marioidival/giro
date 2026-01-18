@@ -11,3 +11,5 @@ tokio.workspace = true
 anyhow.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+bcrypt = "0.16"
+bollard = "0.18"
