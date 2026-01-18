@@ -166,7 +166,7 @@
       "commit_message": "`feat: add TaskRepository with optimized queries`",
       "status": "done"
     },
-     {
+    {
       "issue_number": 16,
       "task_id": "1.13",
       "title": "1.13: Implement IterationRepository",
@@ -403,7 +403,8 @@
       "sprint": "Sprint 2: LLM Agent & Services",
       "sprint_number": 2,
       "files": "`ralph-services/src/executor.rs` (part 3)",
-      "commit_message": "`feat: add execution_loop for task processing`"
+      "commit_message": "`feat: add execution_loop for task processing`",
+      "status": "done"
     },
     {
       "issue_number": 40,
