@@ -119,11 +119,15 @@ impl GitService {
             let repo = Repository::open(&repo_path).context("Failed to open repository")?;
 
             let obj = repo
-                .revparse_single(branch_name)
+                .revparse_single(&branch_name)
                 .context("Failed to find branch")?;
 
-            repo.checkout(&obj, None)
-                .context("Failed to checkout branch")?;
+            let tree = obj.peel_to_tree().context("Failed to peel to tree")?;
+            let tree_obj = tree.as_object();
+            repo.checkout_tree(tree_obj, None)
+                .context("Failed to checkout tree")?;
+            repo.set_head(&format!("refs/heads/{}", branch_name))
+                .context("Failed to set HEAD")?;
 
             Ok(())
         })
@@ -178,7 +182,7 @@ impl GitService {
 
             for path in &paths {
                 index
-                    .update_path(path.as_ref(), None)
+                    .add_path(path.as_ref())
                     .with_context(|| format!("Failed to stage file: {}", path))?;
             }
 
@@ -344,9 +348,9 @@ impl GitService {
     /// Returns error if URL format is unsupported
     fn build_auth_url(url: &str, token: &str) -> Result<String> {
         if url.starts_with("https://") {
-            Ok(url.replace("https://", &format!("https://oauth2:{}", token)))
+            Ok(url.replace("https://", &format!("https://oauth2:{}@", token)))
         } else if url.starts_with("http://") {
-            Ok(url.replace("http://", &format!("http://oauth2:{}", token)))
+            Ok(url.replace("http://", &format!("http://oauth2:{}@", token)))
         } else if url.starts_with("git@") || url.starts_with("ssh://") {
             Err(anyhow!("SSH URLs require SSH keys, not tokens"))
         } else {
@@ -394,7 +398,7 @@ mod tests {
     fn test_build_auth_url_http() {
         let url = "http://github.com/user/repo.git";
         let token = "ghp_test_token";
-        let result = Git::build_auth_url(url, token);
+        let result = GitService::build_auth_url(url, token);
 
         assert!(result.is_ok());
         assert_eq!(

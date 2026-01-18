@@ -312,13 +312,15 @@ impl GitCredentialsRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use uuid::Uuid;
 
     async fn create_test_user(db: &crate::database::Database) -> Result<ralph_models::User> {
         let user_repo = crate::user::UserRepository::new(db.pool().clone());
+        let suffix = Uuid::new_v4();
         user_repo
             .create(ralph_models::CreateUser {
-                username: "alice".to_string(),
-                email: "alice@example.com".to_string(),
+                username: format!("alice_{}", suffix),
+                email: format!("alice_{}@example.com", suffix),
                 password: "hashed_password".to_string(),
             })
             .await
@@ -366,6 +368,7 @@ mod tests {
         let repo = GitCredentialsRepository::new(db.pool().clone());
 
         let user = create_test_user(&db).await?;
+        let user2 = create_test_user(&db).await?;
 
         // Create multiple credentials for same user
         repo.create(CreateGitCredential {
@@ -388,7 +391,7 @@ mod tests {
 
         // Create credential for different user
         repo.create(CreateGitCredential {
-            user_id: "user-456".to_string(),
+            user_id: user2.id.clone(),
             provider: "github".to_string(),
             encrypted_token: "ghp_token_3".to_string(),
             username: None,
@@ -409,9 +412,11 @@ mod tests {
         let db = crate::database::Database::new("sqlite::memory:").await?;
         let repo = GitCredentialsRepository::new(db.pool().clone());
 
+        let user = create_test_user(&db).await?;
+
         let credential = repo
             .create(CreateGitCredential {
-                user_id: "user-123".to_string(),
+                user_id: user.id.clone(),
                 provider: "github".to_string(),
                 encrypted_token: "ghp_test_token".to_string(),
                 username: None,
@@ -419,9 +424,9 @@ mod tests {
             })
             .await?;
 
-        repo.delete(&credential.id, "user-123").await?;
+        repo.delete(&credential.id, &user.id).await?;
 
-        let found = repo.find_by_user_and_provider("user-123", "github").await?;
+        let found = repo.find_by_user_and_provider(&user.id, "github").await?;
 
         assert!(found.is_none());
 
@@ -434,9 +439,12 @@ mod tests {
         let db = crate::database::Database::new("sqlite::memory:").await?;
         let repo = GitCredentialsRepository::new(db.pool().clone());
 
+        let user1 = create_test_user(&db).await?;
+        let user2 = create_test_user(&db).await?;
+
         let credential = repo
             .create(CreateGitCredential {
-                user_id: "user-123".to_string(),
+                user_id: user1.id.clone(),
                 provider: "github".to_string(),
                 encrypted_token: "ghp_test_token".to_string(),
                 username: None,
@@ -444,7 +452,7 @@ mod tests {
             })
             .await?;
 
-        let result = repo.delete(&credential.id, "user-456").await;
+        let result = repo.delete(&credential.id, &user2.id).await;
 
         assert!(result.is_err());
         assert!(
@@ -463,10 +471,12 @@ mod tests {
         let db = crate::database::Database::new("sqlite::memory:").await?;
         let repo = GitCredentialsRepository::new(db.pool().clone());
 
+        let user = create_test_user(&db).await?;
+
         let original_token = "ghp_test_token_1234567890abcdef".to_string();
         let credential = repo
             .create(CreateGitCredential {
-                user_id: "user-123".to_string(),
+                user_id: user.id.clone(),
                 provider: "github".to_string(),
                 encrypted_token: original_token.clone(),
                 username: None,
@@ -499,8 +509,10 @@ mod tests {
         let db = crate::database::Database::new("sqlite::memory:").await?;
         let repo = GitCredentialsRepository::new(db.pool().clone());
 
+        let user = create_test_user(&db).await?;
+
         repo.create(CreateGitCredential {
-            user_id: "user-123".to_string(),
+            user_id: user.id.clone(),
             provider: "github".to_string(),
             encrypted_token: "ghp_token_1".to_string(),
             username: None,
@@ -509,7 +521,7 @@ mod tests {
         .await?;
 
         let duplicate = CreateGitCredential {
-            user_id: "user-123".to_string(),
+            user_id: user.id.clone(),
             provider: "github".to_string(),
             encrypted_token: "ghp_token_2".to_string(),
             username: None,
@@ -528,8 +540,11 @@ mod tests {
         let db = crate::database::Database::new("sqlite::memory:").await?;
         let repo = GitCredentialsRepository::new(db.pool().clone());
 
+        let user1 = create_test_user(&db).await?;
+        let user2 = create_test_user(&db).await?;
+
         repo.create(CreateGitCredential {
-            user_id: "user-123".to_string(),
+            user_id: user1.id.clone(),
             provider: "github".to_string(),
             encrypted_token: "ghp_token_1".to_string(),
             username: None,
@@ -538,7 +553,7 @@ mod tests {
         .await?;
 
         repo.create(CreateGitCredential {
-            user_id: "user-456".to_string(),
+            user_id: user2.id.clone(),
             provider: "github".to_string(),
             encrypted_token: "ghp_token_2".to_string(),
             username: None,
@@ -546,8 +561,8 @@ mod tests {
         })
         .await?;
 
-        let user1_creds = repo.list_by_user("user-123").await?;
-        let user2_creds = repo.list_by_user("user-456").await?;
+        let user1_creds = repo.list_by_user(&user1.id).await?;
+        let user2_creds = repo.list_by_user(&user2.id).await?;
 
         assert_eq!(user1_creds.len(), 1);
         assert_eq!(user2_creds.len(), 1);
@@ -561,11 +576,11 @@ mod tests {
         let db = crate::database::Database::new("sqlite::memory:").await?;
         let repo = GitCredentialsRepository::new(db.pool().clone());
 
-        let user_id = "user-123".to_string();
+        let user = create_test_user(&db).await?;
 
         let cred1 = repo
             .create(CreateGitCredential {
-                user_id: user_id.clone(),
+                user_id: user.id.clone(),
                 provider: "github".to_string(),
                 encrypted_token: "ghp_token_1".to_string(),
                 username: None,
@@ -578,7 +593,7 @@ mod tests {
 
         let cred2 = repo
             .create(CreateGitCredential {
-                user_id: user_id.clone(),
+                user_id: user.id.clone(),
                 provider: "gitlab".to_string(),
                 encrypted_token: "glpat_token_2".to_string(),
                 username: None,
@@ -586,7 +601,7 @@ mod tests {
             })
             .await?;
 
-        let credentials = repo.list_by_user(&user_id).await?;
+        let credentials = repo.list_by_user(&user.id).await?;
         assert_eq!(credentials.len(), 2);
 
         // First credential should be newer (later created_at)
