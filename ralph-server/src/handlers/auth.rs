@@ -10,8 +10,8 @@ use axum::{
     http::{HeaderMap, StatusCode},
 };
 use ralph_models::{CreateUser, LoginUser};
-use ralph_repositories::LoopRepository;
-use ralph_services::AuthService;
+use ralph_repositories::{LoopRepository, TaskRepository};
+use ralph_services::{AuthService, LoopExecutor};
 use serde::{Deserialize, Serialize};
 
 use crate::middleware::auth::SessionStore;
@@ -28,24 +28,33 @@ pub struct AppState {
     pub session_store: SessionStore,
     /// Loop repository for loop database operations
     pub loop_repository: LoopRepository,
+    /// Task repository for task database operations
+    pub task_repository: TaskRepository,
+    /// Loop executor for controlling loop execution (start, pause, resume, stop)
+    pub loop_executor: LoopExecutor,
 }
 
 impl AppState {
-    /// Creates a new AppState with the provided services.
+    /// Creates a new AppState with provided services.
     ///
     /// # Arguments
     /// * `auth_service` - The authentication service instance
     /// * `session_store` - The session store instance
     /// * `loop_repository` - The loop repository instance
+    /// * `loop_executor` - The loop executor instance for controlling loop execution
     pub fn new(
         auth_service: AuthService,
         session_store: SessionStore,
         loop_repository: LoopRepository,
+        task_repository: TaskRepository,
+        loop_executor: LoopExecutor,
     ) -> Self {
         Self {
             auth_service,
             session_store,
             loop_repository,
+            task_repository,
+            loop_executor,
         }
     }
 }
