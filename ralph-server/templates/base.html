@@ -8,7 +8,7 @@
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
     {% block head %}{% endblock %}
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 min-h-screen" hx-ext="session-token">
     {% if logged_in %}
     <nav class="bg-white shadow-sm border-b border-gray-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -38,5 +38,21 @@
     <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {% block content %}{% endblock %}
     </main>
+
+    <script>
+    // Configure HTMX session-token extension
+    htmx.defineExtension('session-token', function() {
+        return {
+            onEvent: function(name, evt) {
+                if (name === 'htmx:configRequest') {
+                    const token = localStorage.getItem('session_token');
+                    if (token) {
+                        evt.detail.headers['session'] = token;
+                    }
+                }
+            }
+        };
+    });
+    </script>
 </body>
 </html>
