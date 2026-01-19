@@ -9,6 +9,7 @@ fn test_login_template_renders_with_csrf_token() {
     let template = LoginTemplate {
         logged_in: false,
         csrf_token: csrf_token.clone(),
+        active_path: "/auth/login".to_string(),
     };
 
     let result = template.render();
@@ -46,6 +47,7 @@ fn test_login_template_has_tailwind_classes() {
     let template = LoginTemplate {
         logged_in: false,
         csrf_token: "test-token".to_string(),
+        active_path: "/auth/login".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -70,6 +72,7 @@ fn test_register_template_renders_with_csrf_token() {
         logged_in: false,
         csrf_token: csrf_token.clone(),
         errors: empty_errors,
+        active_path: "/auth/register".to_string(),
     };
 
     let result = template.render();
@@ -115,6 +118,7 @@ fn test_register_template_displays_validation_errors() {
         logged_in: false,
         csrf_token: "test-token".to_string(),
         errors,
+        active_path: "/auth/register".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -144,6 +148,7 @@ fn test_register_template_no_errors() {
         logged_in: false,
         csrf_token: "test-token".to_string(),
         errors: empty_errors,
+        active_path: "/auth/register".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -163,6 +168,7 @@ fn test_login_template_has_proper_form_attributes() {
     let template = LoginTemplate {
         logged_in: false,
         csrf_token: "test-token".to_string(),
+        active_path: "/auth/login".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -188,6 +194,7 @@ fn test_register_template_has_proper_form_attributes() {
         logged_in: false,
         csrf_token: "test-token".to_string(),
         errors: &[],
+        active_path: "/auth/register".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -220,6 +227,7 @@ fn test_login_template_has_required_attributes() {
     let template = LoginTemplate {
         logged_in: false,
         csrf_token: "test-token".to_string(),
+        active_path: "/auth/login".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -248,6 +256,7 @@ fn test_register_template_has_required_attributes() {
         logged_in: false,
         csrf_token: "test-token".to_string(),
         errors: &[],
+        active_path: "/auth/register".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -279,11 +288,13 @@ fn test_login_and_register_use_tailwind_consistently() {
     let login_template = LoginTemplate {
         logged_in: false,
         csrf_token: "test-token".to_string(),
+        active_path: "/auth/login".to_string(),
     };
     let register_template = RegisterTemplate {
         logged_in: false,
         csrf_token: "test-token".to_string(),
         errors: &[],
+        active_path: "/auth/register".to_string(),
     };
 
     let login_html = login_template.render().unwrap();

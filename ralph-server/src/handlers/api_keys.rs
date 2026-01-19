@@ -302,6 +302,7 @@ pub async fn api_keys_page(
         logged_in,
         csrf_token,
         keys,
+        active_path: "/keys".to_string(),
     };
 
     match template.render() {

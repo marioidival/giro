@@ -143,6 +143,7 @@ pub struct TemplatesListTemplate {
     pub csrf_token: String,
     pub public_templates: Vec<TemplateSummary>,
     pub user_templates: Vec<TemplateSummary>,
+    pub active_path: String,
 }
 
 /// Handles rendering the templates library page (HTML)
@@ -181,6 +182,7 @@ pub async fn templates_page(
         csrf_token,
         public_templates,
         user_templates,
+        active_path: "/templates".to_string(),
     };
 
     match template.render() {

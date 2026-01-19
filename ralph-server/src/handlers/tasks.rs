@@ -635,10 +635,11 @@ pub async fn new_task_form(
     let template = NewTaskTemplate {
         logged_in,
         csrf_token,
-        loop_id,
+        loop_id: loop_id.clone(),
         loop_name,
         existing_tasks: existing_tasks_static,
         errors: errors_static,
+        active_path: format!("/loops/{}/tasks/new", loop_id),
     };
 
     match template.render() {

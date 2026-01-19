@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Ralph Loop Manager{% endblock %}
+
+{% block head %}
+<meta name="csrf-token" content="{{ csrf_token }}">
+{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6 sm:px-0">
+    <div class="max-w-4xl mx-auto">
+        <!-- Page Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Settings</h1>
+            <p class="mt-2 text-sm text-gray-600">Manage your application settings and preferences</p>
+        </div>
+
+        <!-- Settings Navigation -->
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <!-- API Keys Card -->
+            <div class="bg-white shadow rounded-lg hover:shadow-md transition-shadow duration-200">
+                <div class="px-4 py-5 sm:px-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-medium text-gray-900">API Keys</h3>
+                            <p class="mt-1 text-sm text-gray-500">Manage your LLM provider API keys</p>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <a href="/keys" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                            Manage Keys
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Git Credentials Card -->
+            <div class="bg-white shadow rounded-lg hover:shadow-md transition-shadow duration-200">
+                <div class="px-4 py-5 sm:px-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-medium text-gray-900">Git Credentials</h3>
+                            <p class="mt-1 text-sm text-gray-500">Manage your Git repository access tokens</p>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <a href="/git/credentials" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                            Manage Credentials
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Card -->
+            <div class="bg-white shadow rounded-lg hover:shadow-md transition-shadow duration-200">
+                <div class="px-4 py-5 sm:px-6">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0">
+                            <svg class="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <h3 class="text-lg font-medium text-gray-900">Profile</h3>
+                            <p class="mt-1 text-sm text-gray-500">View and update your profile information</p>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <a href="/profile" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700">
+                            View Profile
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

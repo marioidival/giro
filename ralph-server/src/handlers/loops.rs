@@ -93,6 +93,7 @@ pub async fn get_loop_page(
         csrf_token,
         loop_detail,
         tasks,
+        active_path: format!("/loops/{}", id),
     };
 
     match template.render() {
@@ -320,6 +321,7 @@ pub async fn list_loops_page(
                 total_pages: total_pages as u32,
                 has_prev: page > 1,
                 has_next: page < total_pages as u32,
+                active_path: "/loops".to_string(),
             };
 
             match template.render() {
@@ -364,6 +366,7 @@ pub async fn new_loop_form(
         logged_in,
         csrf_token,
         errors: empty_errors,
+        active_path: "/loops/new".to_string(),
     };
 
     match template.render() {

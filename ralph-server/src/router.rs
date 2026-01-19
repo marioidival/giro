@@ -16,7 +16,7 @@ use crate::handlers::{
     },
     tasks::{create_task, delete_task, get_task, list_tasks, new_task_form},
     templates::{create_template, delete_template, get_template, list_templates, templates_page},
-    user::profile_page,
+    user::{profile_page, settings_page},
 };
 use crate::middleware::{
     auth::auth_middleware,
@@ -96,6 +96,10 @@ pub fn create_router(state: AppState) -> Router {
 /// ## Home
 /// - `GET /` - Render home/landing page (HTML)
 ///
+/// ## User
+/// - `GET /profile` - Render user profile page (HTML)
+/// - `GET /settings` - Render settings page (HTML)
+///
 /// ## Loops
 /// - `GET /loops` - Render loop list page (HTML)
 /// - `GET /loops/new` - Render loop creation form (HTML)
@@ -131,6 +135,7 @@ fn protected_routes() -> Router<AppState> {
     Router::new()
         .route("/", get(home_page))
         .route("/profile", get(profile_page))
+        .route("/settings", get(settings_page))
         .route("/loops", get(list_loops_page))
         .route("/loops/new", get(new_loop_form))
         .route("/loops/{id}", get(get_loop_page))

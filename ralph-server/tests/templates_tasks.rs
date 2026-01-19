@@ -19,6 +19,7 @@ fn test_new_task_template_renders_with_csrf_token() {
         loop_name: loop_name.clone(),
         existing_tasks: empty_tasks,
         errors: empty_errors,
+        active_path: "/loops/loop-123/tasks/new".to_string(),
     };
 
     let result = template.render();
@@ -73,6 +74,7 @@ fn test_new_task_template_has_tailwind_classes() {
         loop_name: "Test Loop".to_string(),
         existing_tasks: &[],
         errors: &[],
+        active_path: "/loops/loop-123/tasks/new".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -104,6 +106,7 @@ fn test_new_task_template_displays_validation_errors() {
         loop_name: "Test Loop".to_string(),
         existing_tasks: &[],
         errors,
+        active_path: "/loops/loop-123/tasks/new".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -136,6 +139,7 @@ fn test_new_task_template_no_errors() {
         loop_name: "Test Loop".to_string(),
         existing_tasks: &[],
         errors: empty_errors,
+        active_path: "/loops/loop-123/tasks/new".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -159,6 +163,7 @@ fn test_new_task_template_has_proper_form_attributes() {
         loop_name: "Test Loop".to_string(),
         existing_tasks: &[],
         errors: &[],
+        active_path: "/loops/loop-abc/tasks/new".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -190,6 +195,7 @@ fn test_new_task_template_has_required_attributes() {
         loop_name: "Test Loop".to_string(),
         existing_tasks: &[],
         errors: &[],
+        active_path: "/loops/loop-123/tasks/new".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -249,6 +255,7 @@ fn test_new_task_template_with_existing_tasks() {
         loop_name: "Test Loop".to_string(),
         existing_tasks: &tasks,
         errors: &[],
+        active_path: "/loops/loop-123/tasks/new".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -284,6 +291,7 @@ fn test_new_task_template_priority_options() {
         loop_name: "Test Loop".to_string(),
         existing_tasks: &[],
         errors: &[],
+        active_path: "/loops/loop-123/tasks/new".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -314,6 +322,7 @@ fn test_new_task_template_cancel_link() {
         loop_name: "Test Loop".to_string(),
         existing_tasks: &[],
         errors: &[],
+        active_path: "/loops/loop-xyz/tasks/new".to_string(),
     };
 
     let html = template.render().unwrap();
@@ -334,6 +343,7 @@ fn test_new_task_template_helper_text() {
         loop_name: "Test Loop".to_string(),
         existing_tasks: &[],
         errors: &[],
+        active_path: "/loops/loop-123/tasks/new".to_string(),
     };
 
     let html = template.render().unwrap();

@@ -30,4 +30,4 @@ pub use templates::{
     CreateTemplateRequest, TemplateDetail, TemplateSummary, create_template, delete_template,
     get_template, list_templates, templates_page,
 };
-pub use user::{UserDisplay, profile_page};
+pub use user::{UserDisplay, profile_page, settings_page};

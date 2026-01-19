@@ -335,6 +335,7 @@ pub async fn git_credentials_page(
         logged_in,
         csrf_token,
         credentials,
+        active_path: "/git/credentials".to_string(),
     };
 
     match template.render() {

@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 #[template(path = "base.html")]
 pub struct BaseTemplate {
     pub logged_in: bool,
+    pub active_path: String,
 }
 
 #[derive(Template)]
@@ -17,6 +18,7 @@ pub struct BaseTemplate {
 pub struct LoginTemplate {
     pub logged_in: bool,
     pub csrf_token: String,
+    pub active_path: String,
 }
 
 #[derive(Template)]
@@ -25,6 +27,7 @@ pub struct RegisterTemplate<'a> {
     pub logged_in: bool,
     pub csrf_token: String,
     pub errors: &'a [String],
+    pub active_path: String,
 }
 
 impl<'a> RegisterTemplate<'a> {
@@ -43,6 +46,7 @@ pub struct LoopListTemplate {
     pub total_pages: u32,
     pub has_prev: bool,
     pub has_next: bool,
+    pub active_path: String,
 }
 
 #[derive(Template)]
@@ -51,6 +55,7 @@ pub struct LoopFormTemplate<'a> {
     pub logged_in: bool,
     pub csrf_token: String,
     pub errors: &'a [String],
+    pub active_path: String,
 }
 
 impl<'a> LoopFormTemplate<'a> {
@@ -66,6 +71,7 @@ pub struct LoopDetailTemplate {
     pub csrf_token: String,
     pub loop_detail: LoopDetail,
     pub tasks: Vec<TaskSummary>,
+    pub active_path: String,
 }
 
 #[derive(Template)]
@@ -77,6 +83,7 @@ pub struct NewTaskTemplate<'a> {
     pub loop_name: String,
     pub existing_tasks: &'a [TaskSummary],
     pub errors: &'a [String],
+    pub active_path: String,
 }
 
 #[derive(Template)]
@@ -85,6 +92,7 @@ pub struct GitCredentialsListTemplate {
     pub logged_in: bool,
     pub csrf_token: String,
     pub credentials: Vec<GitCredentialSummary>,
+    pub active_path: String,
 }
 
 #[derive(Template)]
@@ -93,6 +101,7 @@ pub struct ApiKeysListTemplate {
     pub logged_in: bool,
     pub csrf_token: String,
     pub keys: Vec<ApiKeySummary>,
+    pub active_path: String,
 }
 
 #[derive(Template)]
@@ -101,6 +110,7 @@ pub struct HomeTemplate {
     pub logged_in: bool,
     pub csrf_token: String,
     pub recent_loops: Vec<LoopDisplay>,
+    pub active_path: String,
 }
 
 #[derive(Template)]
@@ -109,6 +119,15 @@ pub struct ProfileTemplate {
     pub logged_in: bool,
     pub csrf_token: String,
     pub user: UserDisplay,
+    pub active_path: String,
+}
+
+#[derive(Template)]
+#[template(path = "user/settings.html")]
+pub struct SettingsTemplate {
+    pub logged_in: bool,
+    pub csrf_token: String,
+    pub active_path: String,
 }
 
 /// Simplified display representation for loops in home page.
@@ -129,7 +148,10 @@ mod tests {
 
     #[test]
     fn test_base_template_renders() {
-        let template = BaseTemplate { logged_in: true };
+        let template = BaseTemplate {
+            logged_in: true,
+            active_path: "/".to_string(),
+        };
         let result = template.render();
 
         assert!(result.is_ok(), "Template should render successfully");
@@ -158,6 +180,7 @@ mod tests {
             logged_in: true,
             csrf_token: "test-csrf-token".to_string(),
             errors: empty_errors,
+            active_path: "/loops/new".to_string(),
         };
         let html = template.render().unwrap();
 
@@ -192,6 +215,7 @@ mod tests {
             logged_in: true,
             csrf_token: "test-csrf-token".to_string(),
             errors: empty_errors,
+            active_path: "/loops/new".to_string(),
         };
         let html = template.render().unwrap();
 
@@ -226,6 +250,7 @@ mod tests {
             logged_in: true,
             csrf_token: "test-token".to_string(),
             errors,
+            active_path: "/loops/new".to_string(),
         };
 
         let html = template.render().unwrap();
@@ -255,6 +280,7 @@ mod tests {
             logged_in: true,
             csrf_token: "test-token".to_string(),
             errors: empty_errors,
+            active_path: "/loops/new".to_string(),
         };
 
         let html = template.render().unwrap();
@@ -276,6 +302,7 @@ mod tests {
             logged_in: true,
             csrf_token: "test-token".to_string(),
             errors: empty_errors,
+            active_path: "/loops/new".to_string(),
         };
 
         assert!(
@@ -289,6 +316,7 @@ mod tests {
             logged_in: true,
             csrf_token: "test-token".to_string(),
             errors,
+            active_path: "/loops/new".to_string(),
         };
 
         assert!(
@@ -327,6 +355,7 @@ mod tests {
             csrf_token: "test-csrf-token".to_string(),
             loop_detail,
             tasks: vec![],
+            active_path: "/loops/test-loop-id".to_string(),
         };
         let result = template.render();
 
@@ -412,6 +441,7 @@ mod tests {
             csrf_token: "test-csrf-token".to_string(),
             loop_detail,
             tasks: vec![task1, task2],
+            active_path: "/loops/test-loop-id".to_string(),
         };
         let html = template.render().unwrap();
 
@@ -454,6 +484,7 @@ mod tests {
             csrf_token: "test-csrf-token".to_string(),
             loop_detail,
             tasks: vec![],
+            active_path: "/loops/test-loop-id".to_string(),
         };
         let html = template.render().unwrap();
 
@@ -494,6 +525,7 @@ mod tests {
             csrf_token: "test-csrf-token".to_string(),
             loop_detail,
             tasks: vec![],
+            active_path: "/loops/ws-test-loop-id".to_string(),
         };
         let html = template.render().unwrap();
 

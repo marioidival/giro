@@ -33,6 +33,7 @@ pub async fn home_page(
     Extension(user_id): Extension<String>,
 ) -> (StatusCode, Html<String>) {
     let logged_in = !user_id.is_empty();
+    let active_path = "/".to_string();
 
     let recent_loops: Vec<LoopDisplay> = if logged_in {
         match state.loop_repository.list_by_owner(&user_id).await {
@@ -57,6 +58,7 @@ pub async fn home_page(
         logged_in,
         csrf_token,
         recent_loops,
+        active_path,
     };
 
     match template.render() {
@@ -86,8 +88,6 @@ impl From<LoopSummary> for LoopDisplay {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     fn test_home_page_logged_in_with_loops() {
         // Test would verify template renders with logged_in=true and loops

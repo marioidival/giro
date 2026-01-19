@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::handlers::auth::AppState;
 use crate::middleware::csrf::CsrfToken;
-use crate::templates::ProfileTemplate;
+use crate::templates::{ProfileTemplate, SettingsTemplate};
 
 /// Response structure for profile operations.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -49,6 +49,7 @@ pub async fn profile_page(
     Extension(user_id): Extension<String>,
 ) -> (StatusCode, Html<String>) {
     let logged_in = !user_id.is_empty();
+    let active_path = "/profile".to_string();
 
     // Get user information
     let user_display = match state.auth_service.get_user_by_id(&user_id).await {
@@ -70,6 +71,40 @@ pub async fn profile_page(
         logged_in,
         csrf_token,
         user: user_display,
+        active_path,
+    };
+
+    match template.render() {
+        Ok(html) => (StatusCode::OK, Html(html)),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Html(format!("Failed to render template: {}", e)),
+        ),
+    }
+}
+
+/// Handles rendering the settings page (HTML).
+///
+/// This endpoint:
+/// 1. Extracts user_id from auth middleware
+/// 2. Generates CSRF token
+/// 3. Renders the settings template with links to various settings pages
+///
+/// # Arguments
+/// * `user_id` - The authenticated user's ID (from auth middleware)
+///
+/// # Returns
+/// * `200 OK` with HTML template on success
+/// * `500 Internal Server Error` for server errors
+pub async fn settings_page(Extension(user_id): Extension<String>) -> (StatusCode, Html<String>) {
+    let logged_in = !user_id.is_empty();
+    let active_path = "/settings".to_string();
+    let csrf_token = CsrfToken::generate().to_string();
+
+    let template = SettingsTemplate {
+        logged_in,
+        csrf_token,
+        active_path,
     };
 
     match template.render() {

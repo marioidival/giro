@@ -4,11 +4,15 @@ use askama::Template;
 #[template(path = "base.html")]
 pub struct BaseTemplate {
     pub logged_in: bool,
+    pub active_path: String,
 }
 
 fn main() {
     println!("Testing base template with logged_in = true:");
-    let template = BaseTemplate { logged_in: true };
+    let template = BaseTemplate {
+        logged_in: true,
+        active_path: "/".to_string(),
+    };
     match template.render() {
         Ok(html) => {
             assert!(
@@ -36,7 +40,10 @@ fn main() {
     }
 
     println!("\nTesting base template with logged_in = false:");
-    let template = BaseTemplate { logged_in: false };
+    let template = BaseTemplate {
+        logged_in: false,
+        active_path: "/".to_string(),
+    };
     match template.render() {
         Ok(html) => {
             assert!(

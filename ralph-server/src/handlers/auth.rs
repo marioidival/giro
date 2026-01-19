@@ -367,6 +367,7 @@ pub async fn logout(State(state): State<AppState>, headers: HeaderMap) -> Json<L
 /// * `500 Internal Server Error` for server errors
 pub async fn login_page(State(_state): State<AppState>) -> (StatusCode, Html<String>) {
     let csrf_token = CsrfToken::generate().to_string();
+    let active_path = "/auth/login".to_string();
 
     // Check if user is already logged in by checking if there's any active session
     let logged_in = false;
@@ -374,6 +375,7 @@ pub async fn login_page(State(_state): State<AppState>) -> (StatusCode, Html<Str
     let template = LoginTemplate {
         logged_in,
         csrf_token,
+        active_path,
     };
 
     match template.render() {
@@ -399,6 +401,7 @@ pub async fn login_page(State(_state): State<AppState>) -> (StatusCode, Html<Str
 /// * `500 Internal Server Error` for server errors
 pub async fn register_page(State(_state): State<AppState>) -> (StatusCode, Html<String>) {
     let csrf_token = CsrfToken::generate().to_string();
+    let active_path = "/auth/register".to_string();
 
     // Check if user is already logged in
     let logged_in = false;
@@ -408,6 +411,7 @@ pub async fn register_page(State(_state): State<AppState>) -> (StatusCode, Html<
         logged_in,
         csrf_token,
         errors: empty_errors,
+        active_path,
     };
 
     match template.render() {
